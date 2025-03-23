@@ -1,0 +1,11 @@
+[package]
+name = "rust-lua"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tree-sitter = "0.25.3"                           # o la última compatible
+tree-sitter-lua = { path = "./tree-sitter-lua" }
+
+[build-dependencies]
+cc = "1.2.17"
