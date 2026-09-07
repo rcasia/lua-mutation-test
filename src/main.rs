@@ -1,19 +1,14 @@
-use tree_sitter::Parser;
+use lua_mutation_test::parser::Parser;
 
 fn main() {
     // Initialize the parser
-    let mut parser = Parser::new();
-
-    // Load the Lua language
-    parser
-        .set_language(&tree_sitter_lua::LANGUAGE.into())
-        .expect("Error loading tree-sitter-lua");
+    let mut parser = Parser::new().expect("Error loading tree-sitter-lua");
 
     // Example code
     let source_code = "if a == b then return true end";
 
     // Parse
-    let tree = parser.parse(source_code, None).expect("Parsing failed");
+    let tree = parser.parse_source(source_code).expect("Parsing failed");
 
     let root_node = tree.root_node();
     println!("Root node: {}", root_node.kind());
