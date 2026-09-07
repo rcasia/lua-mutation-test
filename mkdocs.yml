@@ -60,7 +60,7 @@ nav:
       - "ADR-006: Automated releases with semantic-release": adrs/0006-semantic-release.md
       - "ADR-007: Apply vertical slices for feature development": adrs/0007-vertical-slices.md
       - "ADR-008: Agent-driven development": adrs/0008-agent-driven-development.md
-      - "ADR-009: License under PolyForm Noncommercial 1.0.0": adrs/0009-polyform-noncommercial-license.md
+      - "ADR-009: License under Elastic License 2.0": adrs/0009-elastic-license-2.0.md
 
 extra:
   social:

@@ -104,6 +104,7 @@ and push to `origin/main` frequently.
 
 ## License
 
-This project is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).
-It permits noncommercial use, modification, and distribution while reserving all
-commercialization rights to the copyright holder.
+This project is licensed under the [Elastic License 2.0](LICENSE). You may use,
+modify, and distribute it freely, including at your workplace. Providing the
+Software to third parties as a hosted or managed service is reserved to the
+copyright holder.
