@@ -69,20 +69,38 @@ mutation scores.
 
 ## Usage
 
-Run the CLI against a Lua file:
+Run mutation testing against a file or directory:
 
 ```bash
-cargo run -- <path-to-lua-file>
+cargo run -- run <path-to-lua-file-or-directory>
+```
+
+Run with a custom test command and timeout:
+
+```bash
+cargo run -- run src --test-command 'busted' --timeout 30
+```
+
+List available mutation operators:
+
+```bash
+cargo run -- list-operators
+```
+
+Create a sample configuration file:
+
+```bash
+cargo run -- init
 ```
 
 Once built, you can also run the binary directly:
 
 ```bash
-./target/debug/lua-mutation-test <path-to-lua-file>
+./target/debug/lua-mutation-test run <path-to-lua-file-or-directory>
 ```
 
-> Note: Full mutation-testing functionality is not yet implemented. The current CLI
-> demonstrates Lua parsing via tree-sitter.
+> Note: Full mutation-testing functionality is still being implemented. The current
+> CLI provides the entry point and dispatch layer for upcoming workflows.
 
 ## Architecture
 

@@ -1,28 +1,56 @@
-use lua_mutation_test::parser::Parser;
+use clap::Parser;
+use lua_mutation_test::cli::{exit, Cli, Command};
+use std::process::ExitCode;
 
-fn main() {
-    // Initialize the parser
-    let mut parser = Parser::new().expect("Error loading tree-sitter-lua");
+fn main() -> ExitCode {
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(e) => {
+            e.print().expect("failed to print CLI error");
+            return ExitCode::from(exit::CLI_ERROR as u8);
+        }
+    };
 
-    // Example code
-    let source_code = "if a == b then return true end";
+    match run(cli) {
+        Ok(code) => ExitCode::from(code as u8),
+        Err(e) => {
+            eprintln!("error: {e}");
+            ExitCode::from(exit::CLI_ERROR as u8)
+        }
+    }
+}
 
-    // Parse
-    let tree = parser.parse_source(source_code).expect("Parsing failed");
-
-    let root_node = tree.root_node();
-    println!("Root node: {}", root_node.kind());
-    println!("Text: {:?}", &source_code[root_node.byte_range()]);
-    println!();
-
-    // Traverse children of the root node
-    let mut cursor = root_node.walk();
-    for child in root_node.children(&mut cursor) {
-        println!(
-            "- {} [{}..{}]",
-            child.kind(),
-            child.start_byte(),
-            child.end_byte()
-        );
+fn run(cli: Cli) -> Result<i32, String> {
+    match cli.command {
+        Command::Run(args) => {
+            println!("run: path={}", args.path.display());
+            if let Some(cmd) = args.test_command {
+                println!("  test-command: {cmd}");
+            }
+            if let Some(timeout) = args.timeout {
+                println!("  timeout: {timeout}");
+            }
+            if let Some(output) = args.output {
+                println!("  output: {output}");
+            }
+            Ok(exit::SUCCESS)
+        }
+        Command::ListOperators => {
+            println!("Available mutation operators: (none configured yet)");
+            Ok(exit::SUCCESS)
+        }
+        Command::Init => {
+            std::fs::write(
+                "lua-mutation-test.toml",
+                r#"version = "1"
+test_globs = ["*_spec.lua", "*_test.lua", "test_*.lua"]
+framework = "busted"
+timeout = 30
+"#,
+            )
+            .map_err(|e| format!("failed to write sample config: {e}"))?;
+            println!("Created lua-mutation-test.toml");
+            Ok(exit::SUCCESS)
+        }
     }
 }
