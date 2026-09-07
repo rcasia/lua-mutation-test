@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tree-sitter = "0.25.3"                           # o la última compatible
+tree-sitter = "0.25.3"                           # or the latest compatible version
 tree-sitter-lua = { path = "./tree-sitter-lua" }
 
 [build-dependencies]
