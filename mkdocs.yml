@@ -1,0 +1,68 @@
+site_name: lua-mutation-test
+site_description: A mutation testing tool for Lua, written in Rust.
+site_url: https://rcasia.github.io/lua-mutation-test/
+repo_url: https://github.com/rcasia/lua-mutation-test
+repo_name: rcasia/lua-mutation-test
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+
+plugins:
+  - search
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - admonition
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - md_in_html
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Architecture: architecture.md
+  - ADRs:
+      - Overview: adrs/index.md
+      - ADR-001: Use Rust: adrs/0001-use-rust.md
+      - ADR-002: Use tree-sitter for Lua parsing: adrs/0002-use-tree-sitter.md
+      - ADR-003: Vendored tree-sitter-lua: adrs/0003-vendored-tree-sitter-lua.md
+      - ADR-004: ZeroVer versioning: adrs/0004-zero-versioning.md
+      - ADR-005: Trunk-based development: adrs/0005-trunk-based-development.md
+      - ADR-006: Automated releases with semantic-release: adrs/0006-semantic-release.md
+      - ADR-007: Apply vertical slices for feature development: adrs/0007-vertical-slices.md
+      - ADR-008: Agent-driven development: adrs/0008-agent-driven-development.md
+      - ADR-009: License under PolyForm Noncommercial 1.0.0: adrs/0009-polyform-noncommercial-license.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/rcasia/lua-mutation-test
