@@ -16,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Fetch tree-sitter-lua grammar
+      run: ./scripts/fetch-tree-sitter-lua.sh
     - name: Build
       run: cargo build --verbose
     - name: Run tests
