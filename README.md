@@ -78,7 +78,7 @@ cargo run -- <path-to-lua-file>
 Once built, you can also run the binary directly:
 
 ```bash
-./target/debug/rust-lua <path-to-lua-file>
+./target/debug/lua-mutation-test <path-to-lua-file>
 ```
 
 > Note: Full mutation-testing functionality is not yet implemented. The current CLI
@@ -104,4 +104,6 @@ and push to `origin/main` frequently.
 
 ## License
 
-License: TBD
+This project is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+It permits noncommercial use, modification, and distribution while reserving all
+commercialization rights to the copyright holder.

@@ -1,11 +1,20 @@
 [package]
-name = "rust-lua"
+name = "lua-mutation-test"
 version = "0.1.0"
 edition = "2021"
+description = "A mutation testing tool for Lua, written in Rust."
+repository = "https://github.com/rcasia/lua-mutation-test"
+license = "PolyForm-Noncommercial-1.0.0"
+readme = "README.md"
+keywords = ["lua", "mutation-testing", "testing"]
+categories = ["development-tools::testing"]
 
 [dependencies]
-tree-sitter = "0.25.3"                           # or the latest compatible version
-tree-sitter-lua = { path = "./tree-sitter-lua" }
+tree-sitter = "0.25.3"
+tree-sitter-lua = { path = "./tree-sitter-lua", version = "0.5.0" }
 
-[build-dependencies]
-cc = "1.2.17"
+[[bin]]
+name = "lua-mutation-test"
+path = "src/main.rs"
+
+

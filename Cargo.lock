@@ -49,6 +49,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c"
 
 [[package]]
+name = "lua-mutation-test"
+version = "0.1.0"
+dependencies = [
+ "tree-sitter",
+ "tree-sitter-lua",
+]
+
+[[package]]
 name = "memchr"
 version = "2.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -100,15 +108,6 @@ name = "regex-syntax"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
-
-[[package]]
-name = "rust-lua"
-version = "0.1.0"
-dependencies = [
- "cc",
- "tree-sitter",
- "tree-sitter-lua",
-]
 
 [[package]]
 name = "ryu"

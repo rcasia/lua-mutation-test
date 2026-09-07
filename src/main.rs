@@ -1,9 +1,4 @@
-use tree_sitter::{Parser, Language};
-
-// This function is provided by the generated parser (tree-sitter-lua)
-extern "C" {
-    fn tree_sitter_lua() -> Language;
-}
+use tree_sitter::Parser;
 
 fn main() {
     // Initialize the parser
@@ -11,7 +6,7 @@ fn main() {
 
     // Load the Lua language
     parser
-        .set_language(unsafe { &tree_sitter_lua() })
+        .set_language(&tree_sitter_lua::LANGUAGE.into())
         .expect("Error loading tree-sitter-lua");
 
     // Example code
