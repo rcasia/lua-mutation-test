@@ -12,6 +12,10 @@ categories = ["development-tools::testing"]
 [dependencies]
 tree-sitter = "0.25.3"
 tree-sitter-lua = { path = "./tree-sitter-lua", version = "0.5.0" }
+glob = "0.3"
+
+[dev-dependencies]
+tempfile = "3"
 
 [[bin]]
 name = "lua-mutation-test"
