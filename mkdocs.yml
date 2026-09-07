@@ -52,15 +52,15 @@ nav:
   - Architecture: architecture.md
   - ADRs:
       - Overview: adrs/index.md
-      - ADR-001: Use Rust: adrs/0001-use-rust.md
-      - ADR-002: Use tree-sitter for Lua parsing: adrs/0002-use-tree-sitter.md
-      - ADR-003: Vendored tree-sitter-lua: adrs/0003-vendored-tree-sitter-lua.md
-      - ADR-004: ZeroVer versioning: adrs/0004-zero-versioning.md
-      - ADR-005: Trunk-based development: adrs/0005-trunk-based-development.md
-      - ADR-006: Automated releases with semantic-release: adrs/0006-semantic-release.md
-      - ADR-007: Apply vertical slices for feature development: adrs/0007-vertical-slices.md
-      - ADR-008: Agent-driven development: adrs/0008-agent-driven-development.md
-      - ADR-009: License under PolyForm Noncommercial 1.0.0: adrs/0009-polyform-noncommercial-license.md
+      - "ADR-001: Use Rust": adrs/0001-use-rust.md
+      - "ADR-002: Use tree-sitter for Lua parsing": adrs/0002-use-tree-sitter.md
+      - "ADR-003: Vendored tree-sitter-lua": adrs/0003-vendored-tree-sitter-lua.md
+      - "ADR-004: ZeroVer versioning": adrs/0004-zero-versioning.md
+      - "ADR-005: Trunk-based development": adrs/0005-trunk-based-development.md
+      - "ADR-006: Automated releases with semantic-release": adrs/0006-semantic-release.md
+      - "ADR-007: Apply vertical slices for feature development": adrs/0007-vertical-slices.md
+      - "ADR-008: Agent-driven development": adrs/0008-agent-driven-development.md
+      - "ADR-009: License under PolyForm Noncommercial 1.0.0": adrs/0009-polyform-noncommercial-license.md
 
 extra:
   social:
