@@ -78,30 +78,31 @@ generates mutants, runs your test suite against them, and reports mutation score
 
 After building, the shorter alias `lmut` is available at `./target/debug/lmut` (or
 `./target/release/lmut` for release builds). The full `lua-mutation-test` name works
-identically.
+identically. The examples below use `lmut` directly; add the `./target/debug/`
+prefix if you have not installed the binary on your `PATH`.
 
 Run mutation testing against a file or directory:
 
 ```bash
-./target/debug/lmut run <path-to-lua-file-or-directory>
+lmut run <path-to-lua-file-or-directory>
 ```
 
 Run with a custom test command and timeout:
 
 ```bash
-./target/debug/lmut run src --test-command 'busted' --timeout 30
+lmut run src --test-command 'busted' --timeout 30
 ```
 
 List available mutation operators:
 
 ```bash
-./target/debug/lmut list-operators
+lmut list-operators
 ```
 
 Create a sample configuration file:
 
 ```bash
-./target/debug/lmut init
+lmut init
 ```
 
 See the [CLI Reference](https://rcasia.github.io/lua-mutation-test/cli-reference/) for the
