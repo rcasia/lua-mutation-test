@@ -67,9 +67,13 @@ pub struct RunArgs {
     #[arg(long)]
     pub timeout: Option<u64>,
 
-    /// Output format or file path for the report.
+    /// Report format: summary, per-mutant, json, html.
     #[arg(long)]
-    pub output: Option<String>,
+    pub report_format: Option<String>,
+
+    /// Output path for the generated report.
+    #[arg(long)]
+    pub report_output: Option<PathBuf>,
 }
 
 /// Exit codes used by the binary.
@@ -93,15 +97,18 @@ mod tests {
             "busted",
             "--timeout",
             "30",
-            "--output",
+            "--report-format",
             "json",
+            "--report-output",
+            "report.json",
         ]);
         match cli.command {
             Command::Run(args) => {
                 assert_eq!(args.path, PathBuf::from("src"));
                 assert_eq!(args.test_command, Some("busted".to_string()));
                 assert_eq!(args.timeout, Some(30));
-                assert_eq!(args.output, Some("json".to_string()));
+                assert_eq!(args.report_format, Some("json".to_string()));
+                assert_eq!(args.report_output, Some(PathBuf::from("report.json")));
             }
             _ => panic!("expected run subcommand"),
         }

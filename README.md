@@ -135,6 +135,13 @@ lua-mutation-test --config path/to/config.toml run src
 
 CLI flags override configuration file values.
 
+Generate reports after a run:
+
+```bash
+cargo run -- run src --report-format json --report-output report.json
+cargo run -- run src --report-format html --report-output report.html
+```
+
 ## Architecture
 
 - **Rust CLI**: Entry point and orchestration.

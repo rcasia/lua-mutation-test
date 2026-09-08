@@ -1,11 +1,18 @@
 use clap::Parser;
-use lua_mutation_test::cli::{exit, Cli, Command};
+use lua_mutation_test::adapter::FrameworkAdapter;
+use lua_mutation_test::baseline::run_baseline;
+use lua_mutation_test::cli::{exit, Cli, Command, RunArgs};
 use lua_mutation_test::config::Config;
 use lua_mutation_test::mutant::MutantGenerator;
 use lua_mutation_test::operators::default_operators;
 use lua_mutation_test::parser::Parser as LuaParser;
-use std::path::PathBuf;
+use lua_mutation_test::report::{generate_report, ReportData, ReportFormat};
+use lua_mutation_test::runner::{run_mutant, RunnerConfig};
+use lua_mutation_test::score::{score_results, Category};
+use lua_mutation_test::test_discovery::discover_tests;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::time::Duration;
 
 fn main() -> ExitCode {
     let cli = match Cli::try_parse() {
@@ -36,19 +43,7 @@ fn run(cli: Cli) -> Result<i32, String> {
     config.merge(config_from_cli(&cli));
 
     match cli.command {
-        Command::Run(args) => {
-            println!("run: path={}", args.path.display());
-            if let Some(cmd) = config.test_command.or(args.test_command) {
-                println!("  test-command: {cmd}");
-            }
-            if let Some(timeout) = config.timeout.or(args.timeout) {
-                println!("  timeout: {timeout}");
-            }
-            if !config.output.is_empty() {
-                println!("  output: {:?}", config.output);
-            }
-            Ok(exit::SUCCESS)
-        }
+        Command::Run(args) => run_pipeline(args, config),
         Command::ListMutants(args) => {
             let source = std::fs::read_to_string(&args.path)
                 .map_err(|e| format!("failed to read {}: {e}", args.path.display()))?;
@@ -57,10 +52,7 @@ fn run(cli: Cli) -> Result<i32, String> {
             let generator = MutantGenerator::new(default_operators());
             let mutants = generator.generate(&args.path, &source, &tree);
             for mutant in mutants {
-                println!(
-                    "{}",
-                    serde_json::to_string(&mutant).map_err(|e| e.to_string())?
-                );
+                println!("{}", serde_json::to_string(&mutant).map_err(|e| e.to_string())?);
             }
             Ok(exit::SUCCESS)
         }
@@ -91,6 +83,111 @@ source_globs = ["*.lua"]
             Ok(exit::SUCCESS)
         }
     }
+}
+
+fn run_pipeline(args: RunArgs, config: Config) -> Result<i32, String> {
+    let path = args.path.clone();
+    let test_command = config
+        .test_command
+        .clone()
+        .or(args.test_command)
+        .ok_or("no test command configured")?;
+
+    // Discover tests and run baseline.
+    let tests = discover_tests(&path, &config.test_globs);
+    if tests.is_empty() {
+        return Err("no test files discovered".to_string());
+    }
+    let adapter = FrameworkAdapter::from_config(
+        config.framework.as_deref(),
+        Some(&test_command),
+    );
+    let test_refs: Vec<&Path> = tests.iter().map(|p| p.as_path()).collect();
+    let baseline = run_baseline(&adapter, &test_refs);
+    if !baseline.passed() {
+        return Err("baseline test run failed; aborting".to_string());
+    }
+
+    // Discover source files and generate mutants.
+    let source_files = discover_source_files(&path, &config.source_globs)?;
+    let mut mutants = Vec::new();
+    let mut parser = LuaParser::new().map_err(|e| e.to_string())?;
+    for file in &source_files {
+        let source = std::fs::read_to_string(file)
+            .map_err(|e| format!("failed to read {}: {e}", file.display()))?;
+        let tree = parser.parse_source(&source).map_err(|e| e.to_string())?;
+        let generator = MutantGenerator::new(default_operators());
+        let (valid, _invalid) = generator.generate_validated(file, &source, &tree);
+        mutants.extend(valid.into_iter().map(|m| (m, source.clone())));
+    }
+
+    // Run each mutant.
+    let timeout = config
+        .timeout
+        .or(args.timeout)
+        .map(Duration::from_secs)
+        .unwrap_or_else(|| Duration::from_secs(30));
+    let runner_config = RunnerConfig {
+        command: test_command.split_whitespace().map(String::from).collect(),
+        timeout,
+        project_root: path.clone(),
+        snippet_limit: 1000,
+    };
+
+    let mut results = Vec::new();
+    for (mutant, source) in mutants {
+        results.push(run_mutant(&runner_config, &mutant, &source));
+    }
+
+    // Score and report.
+    let score = score_results(&results);
+    println!(
+        "Mutation score: {:.2}% (killed {}, survived {}, timed out {}, errored {})",
+        score.overall.percentage().unwrap_or(0.0),
+        score.overall.killed,
+        score.overall.survived,
+        score.overall.timed_out,
+        score.overall.error
+    );
+
+    if let Some(format) = args.report_format {
+        let format: ReportFormat = format.parse().map_err(|e: String| e)?;
+        let data = ReportData {
+            results: &results,
+            project_root: &path,
+            source_paths: &source_files,
+        };
+        let output = args.report_output.as_deref();
+        generate_report(format, data, output)?;
+    }
+
+    if score.overall.survived > 0 {
+        Ok(exit::TEST_FAILURES)
+    } else {
+        Ok(exit::SUCCESS)
+    }
+}
+
+fn discover_source_files(path: &Path, globs: &[String]) -> Result<Vec<PathBuf>, String> {
+    let mut files = Vec::new();
+    if path.is_file() {
+        files.push(path.to_path_buf());
+        return Ok(files);
+    }
+
+    for glob in globs {
+        let pattern = path.join("**").join(glob).to_string_lossy().to_string();
+        for entry in glob::glob(&pattern).map_err(|e| e.to_string())? {
+            let p = entry.map_err(|e| e.to_string())?;
+            if p.is_file() {
+                files.push(p);
+            }
+        }
+    }
+
+    files.sort();
+    files.dedup();
+    Ok(files)
 }
 
 fn default_config_path() -> PathBuf {

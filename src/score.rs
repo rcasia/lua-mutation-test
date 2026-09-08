@@ -1,6 +1,5 @@
 //! Mutation score calculation and breakdowns.
 
-use crate::mutant::Mutant;
 use crate::result::MutantResult;
 use std::collections::HashMap;
 
@@ -15,7 +14,7 @@ pub enum Category {
 }
 
 /// Counts and percentage for a set of mutant results.
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MutationScore {
     pub killed: usize,
     pub survived: usize,
@@ -77,7 +76,7 @@ pub fn categorize(result: &MutantResult) -> Category {
 }
 
 /// Score breakdowns grouped by file, operator, and function.
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ScoreBreakdown {
     pub overall: MutationScore,
     pub by_file: HashMap<std::path::PathBuf, MutationScore>,
