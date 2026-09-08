@@ -83,7 +83,8 @@ test_globs = ["*_spec.lua", "*_test.lua", "test_*.lua"]
 source_globs = ["*.lua"]
 
 # Difficulty controls the trade-off between speed and completeness.
-# Options: "easy", "medium", "hard". Default is "hard" (all mutants).
+# Options: "very_easy", "easy", "normal", "medium", "hard", "very_hard".
+# Default is "very_hard" (all mutants).
 # difficulty = "medium"
 
 # Operators to include or exclude. Use operator ids from `list-operators`.
@@ -256,33 +257,49 @@ fn num_cpus_like() -> usize {
         .unwrap_or(1)
 }
 
-/// Applies the difficulty-based per-file mutant cap, keeping the
-/// highest-priority mutants first.
+/// Applies the difficulty-based per-mutable-item cap, keeping at most
+/// `max_mutants_per_item` mutants per operator per source region.
 fn apply_mutant_limit(mutants: Vec<Mutant>, config: &Config) -> Vec<Mutant> {
-    let max = match config.difficulty.max_mutants_per_file() {
-        Some(max) if max > 0 && mutants.len() > max => max,
+    let max = match config.difficulty.max_mutants_per_item() {
+        Some(max) if max > 0 => max,
         _ => return mutants,
     };
 
-    let mut scored: Vec<(i32, usize, usize, Mutant)> = mutants
-        .into_iter()
-        .map(|m| {
-            let weight = config.operator_weight(&m.operator);
-            (weight, m.line, m.column, m)
-        })
-        .collect();
+    let mut groups: std::collections::HashMap<(PathBuf, usize, usize, String), Vec<Mutant>> =
+        std::collections::HashMap::new();
+    for mutant in mutants {
+        let key = (
+            mutant.file.clone(),
+            mutant.start_byte,
+            mutant.end_byte,
+            mutant.operator.clone(),
+        );
+        groups.entry(key).or_default().push(mutant);
+    }
 
-    // Higher weight first; tie-break by source location for determinism.
-    scored.sort_by(|a, b| {
-        b.0.cmp(&a.0)
-            .then_with(|| a.1.cmp(&b.1))
-            .then_with(|| a.2.cmp(&b.2))
-    });
-    scored.truncate(max);
+    let mut limited = Vec::new();
+    for (_, group) in groups {
+        let mut group = group;
+        if group.len() > max {
+            // Keep the first `max` mutants by replacement string for determinism.
+            // All mutants in the group share file/operator/location, so the
+            // replacement is the only meaningful discriminator.
+            group.sort_by(|a, b| a.replacement.cmp(&b.replacement));
+            group.truncate(max);
+        }
+        limited.extend(group);
+    }
 
     // Restore a stable order (by source location) before returning.
-    scored.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.2.cmp(&b.2)));
-    scored.into_iter().map(|(_, _, _, m)| m).collect()
+    limited.sort_by(|a, b| {
+        a.file
+            .cmp(&b.file)
+            .then_with(|| a.line.cmp(&b.line))
+            .then_with(|| a.column.cmp(&b.column))
+            .then_with(|| a.operator.cmp(&b.operator))
+            .then_with(|| a.replacement.cmp(&b.replacement))
+    });
+    limited
 }
 
 /// Trait that abstracts over `RunArgs` and `WatchArgs` so the pipeline can be
@@ -388,8 +405,17 @@ mod tests {
     use super::*;
 
     fn dummy_mutant(operator: &str, line: usize, column: usize) -> Mutant {
+        dummy_mutant_with_replacement(operator, line, column, "y")
+    }
+
+    fn dummy_mutant_with_replacement(
+        operator: &str,
+        line: usize,
+        column: usize,
+        replacement: &str,
+    ) -> Mutant {
         Mutant {
-            id: format!("{operator}-{line}-{column}"),
+            id: format!("{operator}-{line}-{column}-{replacement}"),
             operator: operator.to_string(),
             file: PathBuf::from("src/foo.lua"),
             start_byte: 0,
@@ -397,36 +423,32 @@ mod tests {
             line,
             column,
             original: "x".to_string(),
-            replacement: "y".to_string(),
+            replacement: replacement.to_string(),
             equivalent_reason: None,
         }
     }
 
     #[test]
-    fn apply_mutant_limit_keeps_highest_priority_mutants_on_easy() {
+    fn apply_mutant_limit_caps_per_operator_per_item() {
         let mut config = Config::default();
-        config.difficulty = lua_mutation_test::config::Difficulty::Easy;
+        config.difficulty = lua_mutation_test::config::Difficulty::VeryEasy;
 
-        // Easy caps at 50 mutants per file. Create 51 so one is dropped.
-        let mut mutants = vec![dummy_mutant("arithmetic_operator", 100, 1)];
-        for i in 1..=50 {
-            mutants.push(dummy_mutant("control_flow", i, 1));
-        }
+        // Same source item, two operators, two replacements each.
+        let mutants = vec![
+            dummy_mutant_with_replacement("arithmetic_operator", 1, 1, "a"),
+            dummy_mutant_with_replacement("arithmetic_operator", 1, 1, "b"),
+            dummy_mutant_with_replacement("relational_operator", 1, 1, "c"),
+            dummy_mutant_with_replacement("relational_operator", 1, 1, "d"),
+        ];
 
         let limited = apply_mutant_limit(mutants, &config);
-        assert_eq!(limited.len(), 50);
+        assert_eq!(limited.len(), 2);
         assert!(limited.iter().any(|m| m.operator == "arithmetic_operator"));
-        assert_eq!(
-            limited
-                .iter()
-                .filter(|m| m.operator == "control_flow")
-                .count(),
-            49
-        );
+        assert!(limited.iter().any(|m| m.operator == "relational_operator"));
     }
 
     #[test]
-    fn apply_mutant_limit_returns_all_on_hard() {
+    fn apply_mutant_limit_keeps_all_on_very_hard() {
         let config = Config::default();
         let mutants = vec![
             dummy_mutant("control_flow", 1, 1),

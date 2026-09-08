@@ -102,9 +102,24 @@ includes, excludes, and test-runner settings.
 | `timeout` | integer | Timeout in seconds for each mutant test run. |
 | `test_globs` | list of strings | Glob patterns for discovering test files. |
 | `source_globs` | list of strings | Glob patterns for discovering source files. |
-| `difficulty` | string | `"easy"`, `"medium"`, or `"hard"`. Controls the per-file mutant cap. Default is `"hard"`. |
+| `difficulty` | string | `"very_easy"`, `"easy"`, `"normal"`, `"medium"`, `"hard"`, `"very_hard"`. Controls the per-operator-per-item mutant cap. Default is `"very_hard"`. |
 | `operators.include` | list of strings | Only run these operator ids. |
 | `operators.exclude` | list of strings | Skip these operator ids. |
+
+#### Difficulty levels
+
+The `difficulty` setting limits how many mutants each operator produces per
+mutable source item (e.g., a binary expression or condition). Lower levels run
+faster while still visiting every mutable site.
+
+| Level | Mutants per operator per item |
+|-------|-------------------------------|
+| `very_easy` | 1 |
+| `easy` | 2 |
+| `normal` | 3 |
+| `medium` | 5 |
+| `hard` | 10 |
+| `very_hard` | unlimited |
 | `parallelism` | integer | Number of concurrent mutant runs. |
 | `output` | list of strings | Report output formats. |
 

@@ -10,20 +10,33 @@ pub const DEFAULT_CONFIG_PATH: &str = ".lua-mutation-test.toml";
 
 /// Difficulty level controlling the trade-off between run time and completeness.
 ///
-/// - `Easy`: small, fast subset of mutants per file.
-/// - `Medium`: moderate subset.
-/// - `Hard`: all generated mutants (most thorough, slowest).
+/// The cap applies per mutable item and per operator (a source region such as a
+/// binary expression, condition, or statement). This keeps coverage broad: every
+/// mutable site is still visited, but lower difficulties keep fewer mutations
+/// per operator per site.
+///
+/// | Level | Mutants per operator per item |
+/// |-------|-------------------------------|
+/// | `very_easy` | 1 |
+/// | `easy` | 2 |
+/// | `normal` | 3 |
+/// | `medium` | 5 |
+/// | `hard` | 10 |
+/// | `very_hard` | unlimited |
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Difficulty {
+    VeryEasy,
     Easy,
+    Normal,
     Medium,
     Hard,
+    VeryHard,
 }
 
 impl Default for Difficulty {
     fn default() -> Self {
-        Difficulty::Hard
+        Difficulty::VeryHard
     }
 }
 
@@ -32,21 +45,28 @@ impl FromStr for Difficulty {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
+            "very_easy" | "very easy" => Ok(Difficulty::VeryEasy),
             "easy" => Ok(Difficulty::Easy),
+            "normal" => Ok(Difficulty::Normal),
             "medium" => Ok(Difficulty::Medium),
             "hard" => Ok(Difficulty::Hard),
+            "very_hard" | "very hard" => Ok(Difficulty::VeryHard),
             _ => Err(format!("unknown difficulty: {s}")),
         }
     }
 }
 
 impl Difficulty {
-    /// Returns the per-source-file mutant cap for this difficulty, if any.
-    pub fn max_mutants_per_file(self) -> Option<usize> {
+    /// Returns the maximum number of mutants to keep per operator per mutable
+    /// item for this difficulty. `None` means no limit.
+    pub fn max_mutants_per_item(self) -> Option<usize> {
         match self {
-            Difficulty::Easy => Some(50),
-            Difficulty::Medium => Some(150),
-            Difficulty::Hard => None,
+            Difficulty::VeryEasy => Some(1),
+            Difficulty::Easy => Some(2),
+            Difficulty::Normal => Some(3),
+            Difficulty::Medium => Some(5),
+            Difficulty::Hard => Some(10),
+            Difficulty::VeryHard => None,
         }
     }
 }
@@ -393,13 +413,23 @@ difficulty = "easy"
 "#;
         let config: Config = toml::from_str(source).unwrap();
         assert_eq!(config.difficulty, Difficulty::Easy);
-        assert_eq!(config.difficulty.max_mutants_per_file(), Some(50));
+        assert_eq!(config.difficulty.max_mutants_per_item(), Some(2));
     }
 
     #[test]
-    fn default_difficulty_is_hard() {
+    fn default_difficulty_is_unlimited() {
         let config: Config = toml::from_str("version = \"1\"").unwrap();
-        assert_eq!(config.difficulty, Difficulty::Hard);
-        assert_eq!(config.difficulty.max_mutants_per_file(), None);
+        assert_eq!(config.difficulty, Difficulty::VeryHard);
+        assert_eq!(config.difficulty.max_mutants_per_item(), None);
+    }
+
+    #[test]
+    fn difficulty_caps_are_gradual() {
+        assert_eq!(Difficulty::VeryEasy.max_mutants_per_item(), Some(1));
+        assert_eq!(Difficulty::Easy.max_mutants_per_item(), Some(2));
+        assert_eq!(Difficulty::Normal.max_mutants_per_item(), Some(3));
+        assert_eq!(Difficulty::Medium.max_mutants_per_item(), Some(5));
+        assert_eq!(Difficulty::Hard.max_mutants_per_item(), Some(10));
+        assert_eq!(Difficulty::VeryHard.max_mutants_per_item(), None);
     }
 }
