@@ -5,11 +5,12 @@ use crate::result::MutantResult;
 use crate::runner::{run_mutant, RunnerConfig};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::mpsc;
 use std::sync::Arc;
 
 /// A pool of workers that executes mutant test runs in parallel.
 pub struct WorkerPool {
-    pool: ThreadPool,
+    pool: Arc<ThreadPool>,
 }
 
 impl WorkerPool {
@@ -19,7 +20,9 @@ impl WorkerPool {
             .num_threads(workers.max(1))
             .build()
             .map_err(|e| e.to_string())?;
-        Ok(Self { pool })
+        Ok(Self {
+            pool: Arc::new(pool),
+        })
     }
 
     /// Returns the recommended worker count for the current machine.
@@ -47,6 +50,34 @@ impl WorkerPool {
                 })
                 .collect()
         })
+    }
+
+    /// Runs all mutants in parallel and streams each result through a channel
+    /// as soon as it completes. The receiver can process results while the rest
+    /// of the pool is still running.
+    pub fn run_mutants_streaming(
+        &self,
+        config: &RunnerConfig,
+        jobs: Vec<MutantJob>,
+        progress: Option<Arc<Progress>>,
+    ) -> mpsc::Receiver<MutantResult> {
+        let (tx, rx) = mpsc::channel();
+        let config = config.clone();
+        let pool = Arc::clone(&self.pool);
+
+        std::thread::spawn(move || {
+            pool.install(|| {
+                jobs.into_par_iter().for_each(|job| {
+                    let result = run_mutant(&config, &job.mutant, &job.source);
+                    if let Some(ref p) = progress {
+                        p.increment();
+                    }
+                    let _ = tx.send(result);
+                });
+            });
+        });
+
+        rx
     }
 }
 

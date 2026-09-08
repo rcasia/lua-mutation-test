@@ -1,6 +1,6 @@
 //! Mutant representation, generation, and serialization.
 
-use crate::mutant_validation::{apply_mutant, validate_source};
+use crate::mutant_validation::{apply_mutant, validate_source, MutantOutcome};
 use crate::position::byte_offset_to_position;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
@@ -112,7 +112,8 @@ impl MutantGenerator {
 
     /// Generates mutants for the given file and parsed source.
     ///
-    /// Likely-equivalent mutants are filtered out. Use
+    /// Likely-equivalent mutants are filtered out and mutants that do not
+    /// produce syntactically valid Lua are discarded. Use
     /// [`Self::generate_with_equivalents`] when equivalent mutants should be
     /// reported separately.
     pub fn generate(&self, file: impl AsRef<Path>, source: &str, tree: &Tree) -> Vec<Mutant> {
@@ -121,6 +122,8 @@ impl MutantGenerator {
 
     /// Generates mutants and returns both executable mutants and likely-equivalent
     /// mutants detected by static heuristics.
+    ///
+    /// Mutants that do not produce syntactically valid Lua are discarded.
     pub fn generate_with_equivalents(
         &self,
         file: impl AsRef<Path>,
@@ -145,6 +148,11 @@ impl MutantGenerator {
                 }
 
                 let mutant = Mutant::from_candidate(candidate.clone(), mutator.id(), file, source);
+                let mutated = apply_mutant(source, &mutant);
+                if !matches!(validate_source(&mutated), MutantOutcome::Valid) {
+                    continue;
+                }
+
                 if let Some(reason) =
                     crate::equivalent_heuristics::classify(source, tree, &candidate)
                 {
@@ -160,27 +168,18 @@ impl MutantGenerator {
 
     /// Generates mutants and keeps only those that are syntactically valid Lua.
     ///
-    /// Returns `(valid, invalid, equivalent)` where `equivalent` contains mutants
-    /// classified as likely equivalent by static heuristics.
+    /// Returns `(valid, invalid, equivalent)` where `valid` contains executable
+    /// mutants, `invalid` is always empty because invalid mutants are discarded,
+    /// and `equivalent` contains mutants classified as likely equivalent by
+    /// static heuristics.
     pub fn generate_validated(
         &self,
         file: impl AsRef<Path>,
         source: &str,
         tree: &Tree,
     ) -> (Vec<Mutant>, Vec<(Mutant, String)>, Vec<Mutant>) {
-        let mut valid = Vec::new();
-        let mut invalid = Vec::new();
-
-        let (executable, equivalent) = self.generate_with_equivalents(file, source, tree);
-        for mutant in executable {
-            let mutated = apply_mutant(source, &mutant);
-            match validate_source(&mutated) {
-                crate::mutant_validation::MutantOutcome::Valid => valid.push(mutant),
-                crate::mutant_validation::MutantOutcome::Error(msg) => invalid.push((mutant, msg)),
-            }
-        }
-
-        (valid, invalid, equivalent)
+        let (valid, equivalent) = self.generate_with_equivalents(file, source, tree);
+        (valid, Vec::new(), equivalent)
     }
 }
 
@@ -270,5 +269,55 @@ mod tests {
         let json = serde_json::to_string(&mutants[0]).unwrap();
         let round_trip: Mutant = serde_json::from_str(&json).unwrap();
         assert_eq!(mutants[0], round_trip);
+    }
+
+    struct ValidAndInvalidMutator;
+
+    impl Mutator for ValidAndInvalidMutator {
+        fn id(&self) -> &'static str {
+            "valid_and_invalid"
+        }
+
+        fn generate(&self, _source: &str, tree: &Tree) -> Vec<CandidateMutant> {
+            // Replace the first number literal with a valid or an invalid value.
+            let number = crate::ast::collect_nodes(tree, &["number"])
+                .into_iter()
+                .next()
+                .unwrap();
+            vec![
+                CandidateMutant {
+                    start_byte: number.start_byte(),
+                    end_byte: number.end_byte(),
+                    replacement: "2".to_string(),
+                },
+                CandidateMutant {
+                    start_byte: number.start_byte(),
+                    end_byte: number.end_byte(),
+                    replacement: "(".to_string(),
+                },
+            ]
+        }
+    }
+
+    #[test]
+    fn discards_invalid_lua_mutants() {
+        let mut parser = Parser::new().unwrap();
+        let source = "local x = 1";
+        let tree = parser.parse_source(source).unwrap();
+        let generator = MutantGenerator::new(vec![Box::new(ValidAndInvalidMutator)]);
+
+        let mutants = generator.generate("file.lua", source, &tree);
+        assert_eq!(mutants.len(), 1);
+        assert_eq!(mutants[0].replacement, "2");
+
+        let (executable, equivalent) =
+            generator.generate_with_equivalents("file.lua", source, &tree);
+        assert_eq!(executable.len(), 1);
+        assert!(equivalent.is_empty());
+
+        let (valid, invalid, equivalent) = generator.generate_validated("file.lua", source, &tree);
+        assert_eq!(valid.len(), 1);
+        assert!(invalid.is_empty());
+        assert!(equivalent.is_empty());
     }
 }

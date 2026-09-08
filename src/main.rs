@@ -34,6 +34,11 @@ fn main() -> ExitCode {
 }
 
 fn run(cli: Cli) -> Result<i32, String> {
+    let _ = ctrlc::set_handler(|| {
+        eprintln!("\nInterrupt received, flushing cache...");
+        lua_mutation_test::incremental::set_interrupt_flag(true);
+    });
+
     let config_path = cli.config.clone().unwrap_or_else(default_config_path);
     let mut config = if config_path.exists() {
         Config::from_file(&config_path).map_err(|e| e.to_string())?

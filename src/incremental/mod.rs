@@ -11,7 +11,16 @@ use crate::runner::RunnerConfig;
 use crate::worker_pool::{MutantJob, Progress, WorkerPool};
 use cache::{result_from_entry, CacheEntry, CacheFile};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+
+static INTERRUPT_FLAG: AtomicBool = AtomicBool::new(false);
+
+/// Sets the process-wide interrupt flag. The binary's Ctrl+C handler calls this;
+/// tests leave the flag cleared.
+pub fn set_interrupt_flag(value: bool) {
+    INTERRUPT_FLAG.store(value, Ordering::SeqCst);
+}
 
 /// Result of an incremental mutation run.
 #[derive(Debug, Clone)]
@@ -77,36 +86,70 @@ pub fn run_incremental(
     let cached = cached_results.len();
     eprintln!("  cache: {} hit(s), {} mutant(s) to run", cached, ran);
 
-    // Execute mutants that were not cacheable.
+    // Execute mutants that were not cacheable, streaming each result into the
+    // cache as soon as it completes.
     let pool = WorkerPool::new(workers)?;
     eprintln!("Running mutants with {} worker(s)...", workers);
     let progress = Arc::new(Progress::new(ran.max(1)));
-    let new_results = pool.run_mutants(runner_config, jobs, Some(progress));
-    eprintln!("  mutant run complete");
+    let rx = pool.run_mutants_streaming(runner_config, jobs, Some(progress));
 
-    // Update the cache with newly computed results and current file state.
-    for result in &new_results {
+    INTERRUPT_FLAG.store(false, Ordering::SeqCst);
+
+    let mut new_results = Vec::new();
+    let save_every = 50;
+
+    for result in rx {
         let mutant = result.mutant();
         let key = CacheFile::key(&mutant.file, &mutant.id, &config_hash);
         cache
             .entries
-            .insert(key, CacheEntry::from_result(result, &config_hash));
+            .insert(key, CacheEntry::from_result(&result, &config_hash));
+        new_results.push(result);
+
+        if new_results.len() % save_every == 0 {
+            cache.save(project_root)?;
+        }
+
+        if INTERRUPT_FLAG.load(Ordering::SeqCst) {
+            cache.file_hashes = cache::compute_file_hashes(source_files);
+            cache.config_hash = config_hash.clone();
+            cache.git_head = current_git_head(project_root);
+            cache.save(project_root)?;
+            let ran_so_far = new_results.len();
+            eprintln!("  saved partial cache ({} result(s))", ran_so_far);
+            let mut results = cached_results.clone();
+            results.extend(new_results);
+            return Ok(IncrementalRunResult {
+                results,
+                ran: ran_so_far,
+                cached,
+            });
+        }
     }
+    eprintln!("  mutant run complete");
+
+    // Update the cache with current file state and save.
     cache.file_hashes = cache::compute_file_hashes(source_files);
     cache.config_hash = config_hash;
     cache.git_head = current_git_head(project_root);
     eprintln!("Saving cache...");
     cache.save(project_root)?;
 
-    // Merge cached and new results, preserving input order as much as possible.
-    let mut results = cached_results;
-    results.extend(new_results);
-
     Ok(IncrementalRunResult {
-        results,
+        results: merge_results(cached_results, new_results),
         ran,
         cached,
     })
+}
+
+/// Merges cached and newly computed results.
+fn merge_results(
+    cached_results: Vec<MutantResult>,
+    new_results: Vec<MutantResult>,
+) -> Vec<MutantResult> {
+    let mut results = cached_results;
+    results.extend(new_results);
+    results
 }
 
 /// Returns the current git HEAD commit hash, if available.
