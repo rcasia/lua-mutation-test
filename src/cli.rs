@@ -7,6 +7,7 @@ use std::path::PathBuf;
 #[derive(Parser, Debug)]
 #[command(
     name = "lua-mutation-test",
+    bin_name = "lua-mutation-test",
     version,
     about = "A mutation testing tool for Lua",
     long_about = None

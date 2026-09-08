@@ -69,10 +69,10 @@ The current CLI demonstrates Lua parsing via tree-sitter:
 cargo run -- <path-to-lua-file>
 ```
 
-Once built, you can also run the binary directly:
+Once built, you can also run the binary directly. The shorter alias `lmut` is available and preferred in examples; the full `lua-mutation-test` name works identically:
 
 ```bash
-./target/debug/lua-mutation-test <path-to-lua-file>
+./target/debug/lmut <path-to-lua-file>
 ```
 
 ## CLI Reference

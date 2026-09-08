@@ -31,6 +31,10 @@ criterion = "0.5"
 name = "lua-mutation-test"
 path = "src/main.rs"
 
+[[bin]]
+name = "lmut"
+path = "src/main.rs"
+
 [[bench]]
 name = "mutation_benchmark"
 harness = false

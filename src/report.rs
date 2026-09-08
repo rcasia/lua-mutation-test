@@ -591,9 +591,8 @@ fn render_file_html(
 
     let code_html = match std::fs::read_to_string(&full_path) {
         Ok(source) => render_source_html(&source, results),
-        Err(_) => {
-            r#"<div style="padding:1rem;color:#c62828;">Could not read source file.</div>"#.to_string()
-        }
+        Err(_) => r#"<div style="padding:1rem;color:#c62828;">Could not read source file.</div>"#
+            .to_string(),
     };
 
     let score_badge = match file_score.percentage() {

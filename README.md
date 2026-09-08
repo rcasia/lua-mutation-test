@@ -103,10 +103,10 @@ cargo run -- init
 See the [CLI Reference](https://rcasia.github.io/lua-mutation-test/cli-reference/) for the
 full list of commands and options.
 
-Once built, you can also run the binary directly:
+Once built, you can also run the binary directly. The shorter alias `lmut` is available and preferred in examples; the full `lua-mutation-test` name works identically:
 
 ```bash
-./target/debug/lua-mutation-test run <path-to-lua-file-or-directory>
+./target/debug/lmut run <path-to-lua-file-or-directory>
 ```
 
 > Note: The project is a work in progress. APIs, CLI flags, and behavior may change.
@@ -135,7 +135,7 @@ exclude = ["helpers_*"]
 Pass an explicit config path with `--config`:
 
 ```bash
-lua-mutation-test --config path/to/config.toml run src
+lmut --config path/to/config.toml run src
 ```
 
 CLI flags override configuration file values.
@@ -143,9 +143,9 @@ CLI flags override configuration file values.
 Generate reports after a run:
 
 ```bash
-cargo run -- run src --report-format json --report-output report.json
-cargo run -- run src --report-format ctrf --report-output ctrf-report.json
-cargo run -- run src --report-format html --report-output report.html
+lmut run src --report-format json --report-output report.json
+lmut run src --report-format ctrf --report-output ctrf-report.json
+lmut run src --report-format html --report-output report.html
 ```
 
 ## Architecture

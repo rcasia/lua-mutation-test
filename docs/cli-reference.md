@@ -1,6 +1,6 @@
 # CLI Reference
 
-`lua-mutation-test` is a command-line mutation testing tool for Lua.
+`lua-mutation-test` is a command-line mutation testing tool for Lua. The `lmut` binary is a short alias for `lua-mutation-test`; both names share the same CLI and produce identical output.
 
 This page documents the available subcommands, options, and exit codes. Keep it
 in sync with `src/cli.rs`; when you add, remove, or change a CLI flag or
@@ -25,7 +25,7 @@ These options can be used before any subcommand.
 Run mutation testing against a Lua file or directory.
 
 ```bash
-lua-mutation-test run <PATH> [OPTIONS]
+lmut run <PATH> [OPTIONS]
 ```
 
 #### Arguments
@@ -46,9 +46,9 @@ lua-mutation-test run <PATH> [OPTIONS]
 #### Examples
 
 ```bash
-lua-mutation-test run src
-lua-mutation-test run file.lua --test-command 'busted' --timeout 30 --report-format json
-lua-mutation-test run src --report-format ctrf --report-output ctrf-report.json
+lmut run src
+lmut run file.lua --test-command 'busted' --timeout 30 --report-format json
+lmut run src --report-format ctrf --report-output ctrf-report.json
 ```
 
 ### `list-mutants`
@@ -56,7 +56,7 @@ lua-mutation-test run src --report-format ctrf --report-output ctrf-report.json
 List the mutants that would be generated for a given Lua source file.
 
 ```bash
-lua-mutation-test list-mutants <PATH>
+lmut list-mutants <PATH>
 ```
 
 #### Arguments
@@ -70,7 +70,7 @@ lua-mutation-test list-mutants <PATH>
 List the available mutation operators.
 
 ```bash
-lua-mutation-test list-operators
+lmut list-operators
 ```
 
 ### `init`
@@ -78,7 +78,7 @@ lua-mutation-test list-operators
 Create a sample configuration file in the current directory.
 
 ```bash
-lua-mutation-test init
+lmut init
 ```
 
 ## Exit codes
@@ -125,7 +125,7 @@ faster while still visiting every mutable site.
 | `parallelism` | integer | Number of concurrent mutant runs. |
 | `output` | list of strings | Report output formats. |
 
-Use `lua-mutation-test list-operators` to see available operator ids.
+Use `lmut list-operators` to see available operator ids.
 
 ### Example
 
