@@ -51,7 +51,7 @@ fn make_executable(path: &Path) {
 fn discover_source_files(path: &Path, globs: &[String]) -> Vec<PathBuf> {
     let mut files = Vec::new();
     for glob in globs {
-        let pattern = path.join("**").join(glob).to_string_lossy().to_string();
+        let pattern = path.join(glob).to_string_lossy().to_string();
         for entry in glob::glob(&pattern).expect("invalid glob") {
             let p = entry.expect("glob entry error");
             if p.is_file() {

@@ -156,7 +156,7 @@ where
 
     // Discover source files and generate mutants.
     eprintln!("Discovering source files...");
-    let source_files = discover_source_files(path, &config.source_globs)?;
+    let source_files = discover_source_files(path, &config.source_globs, &config.files)?;
     eprintln!("  discovered {} source file(s)", source_files.len());
     eprintln!("Generating mutants...");
     let mut mutants = Vec::new();
@@ -348,18 +348,25 @@ impl RunArgsLike for WatchArgs {
     }
 }
 
-fn discover_source_files(path: &Path, globs: &[String]) -> Result<Vec<PathBuf>, String> {
+fn discover_source_files(
+    path: &Path,
+    globs: &[String],
+    filter: &lua_mutation_test::config::Filter,
+) -> Result<Vec<PathBuf>, String> {
     let mut files = Vec::new();
     if path.is_file() {
-        files.push(path.to_path_buf());
+        let file = path.to_path_buf();
+        if filter.matches(&file.to_string_lossy()) {
+            files.push(file);
+        }
         return Ok(files);
     }
 
     for glob in globs {
-        let pattern = path.join("**").join(glob).to_string_lossy().to_string();
+        let pattern = path.join(glob).to_string_lossy().to_string();
         for entry in glob::glob(&pattern).map_err(|e| e.to_string())? {
             let p = entry.map_err(|e| e.to_string())?;
-            if p.is_file() {
+            if p.is_file() && filter.matches(&p.to_string_lossy()) {
                 files.push(p);
             }
         }
