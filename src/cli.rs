@@ -13,7 +13,7 @@ use std::path::PathBuf;
     long_about = None
 )]
 #[command(
-    after_help = "EXAMPLES:\n  lua-mutation-test run src\n  lua-mutation-test run file.lua --test-command 'busted'\n  lua-mutation-test list-operators\n  lua-mutation-test init"
+    after_help = "EXAMPLES:\n  lmut run\n  lmut run src\n  lmut run file.lua --test-command 'busted'\n  lmut list-operators\n  lmut init"
 )]
 pub struct Cli {
     /// Path to a configuration file.
@@ -61,6 +61,7 @@ pub struct ListMutantsArgs {
 #[derive(Parser, Debug, Clone)]
 pub struct RunArgs {
     /// Path to a Lua file or directory to mutate.
+    #[arg(default_value = ".")]
     pub path: PathBuf,
 
     /// Custom shell command used to run tests.
@@ -140,6 +141,26 @@ mod tests {
                 assert_eq!(args.timeout, Some(30));
                 assert_eq!(args.report_format, Some("json".to_string()));
                 assert_eq!(args.report_output, Some(PathBuf::from("report.json")));
+            }
+            _ => panic!("expected run subcommand"),
+        }
+    }
+
+    #[test]
+    fn run_subcommand_defaults_path_to_current_directory() {
+        let cli = Cli::parse_from([
+            "lua-mutation-test",
+            "run",
+            "--test-command",
+            "busted",
+            "--timeout",
+            "30",
+        ]);
+        match cli.command {
+            Command::Run(args) => {
+                assert_eq!(args.path, PathBuf::from("."));
+                assert_eq!(args.test_command, Some("busted".to_string()));
+                assert_eq!(args.timeout, Some(30));
             }
             _ => panic!("expected run subcommand"),
         }

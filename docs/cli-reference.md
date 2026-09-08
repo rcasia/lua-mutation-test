@@ -22,17 +22,18 @@ These options can be used before any subcommand.
 
 ### `run`
 
-Run mutation testing against a Lua file or directory.
+Run mutation testing against a Lua file or directory. If `<PATH>` is omitted, the
+current directory is used.
 
 ```bash
-lmut run <PATH> [OPTIONS]
+lmut run [PATH] [OPTIONS]
 ```
 
 #### Arguments
 
 | Argument | Description |
 |----------|-------------|
-| `<PATH>` | Path to a Lua file or directory to mutate. |
+| `[PATH]` | Path to a Lua file or directory to mutate. Defaults to `.`. |
 
 #### Options
 

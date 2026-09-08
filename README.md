@@ -62,9 +62,11 @@ development setup.
 The examples below use the `lmut` binary. The full `lua-mutation-test` name works
 identically.
 
-Run mutation testing against a file or directory:
+Run mutation testing against a file or directory. If no path is given, it
+mutates the current directory:
 
 ```bash
+lmut run
 lmut run <path-to-lua-file-or-directory>
 ```
 

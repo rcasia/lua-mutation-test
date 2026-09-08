@@ -28,9 +28,11 @@ for the development setup.
 
 ## Quick start
 
-Run mutation testing against a file or directory:
+Run mutation testing against a file or directory. If no path is given, the
+current directory is used:
 
 ```bash
+lmut run
 lmut run <path-to-lua-file-or-directory>
 ```
 
