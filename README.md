@@ -102,6 +102,35 @@ Once built, you can also run the binary directly:
 > Note: Full mutation-testing functionality is still being implemented. The current
 > CLI provides the entry point and dispatch layer for upcoming workflows.
 
+## Configuration
+
+Create a `.lua-mutation-test.toml` (or `.lua-mutation-test.json`) file in your project root:
+
+```toml
+version = "1"
+test_command = "busted"
+timeout = 30
+test_globs = ["*_spec.lua", "*_test.lua", "test_*.lua"]
+source_globs = ["*.lua"]
+
+[files]
+exclude = ["*_test.lua", "*_spec.lua"]
+
+[operators]
+exclude = ["control_flow"]
+
+[functions]
+exclude = ["helpers_*"]
+```
+
+Pass an explicit config path with `--config`:
+
+```bash
+lua-mutation-test --config path/to/config.toml run src
+```
+
+CLI flags override configuration file values.
+
 ## Architecture
 
 - **Rust CLI**: Entry point and orchestration.
