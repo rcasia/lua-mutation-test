@@ -10,6 +10,7 @@ use lua_mutation_test::report::{generate_report, ReportData, ReportFormat};
 use lua_mutation_test::runner::{run_mutant, RunnerConfig};
 use lua_mutation_test::score::{score_results, Category};
 use lua_mutation_test::test_discovery::discover_tests;
+use lua_mutation_test::worker_pool::{MutantJob, WorkerPool};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::Duration;
@@ -134,10 +135,13 @@ fn run_pipeline(args: RunArgs, config: Config) -> Result<i32, String> {
         snippet_limit: 1000,
     };
 
-    let mut results = Vec::new();
-    for (mutant, source) in mutants {
-        results.push(run_mutant(&runner_config, &mutant, &source));
-    }
+    let workers = args.workers.unwrap_or_else(WorkerPool::default_workers);
+    let pool = WorkerPool::new(workers)?;
+    let jobs: Vec<_> = mutants
+        .into_iter()
+        .map(|(mutant, source)| MutantJob { mutant, source })
+        .collect();
+    let results = pool.run_mutants(&runner_config, jobs, None);
 
     // Score and report.
     let score = score_results(&results);
@@ -200,6 +204,9 @@ fn config_from_cli(cli: &Cli) -> Config {
         Command::Run(args) => {
             config.test_command = args.test_command.clone();
             config.timeout = args.timeout;
+            if let Some(workers) = args.workers {
+                config.parallelism = Some(workers);
+            }
         }
         _ => {}
     }

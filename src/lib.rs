@@ -14,3 +14,4 @@ pub mod result;
 pub mod runner;
 pub mod score;
 pub mod test_discovery;
+pub mod worker_pool;

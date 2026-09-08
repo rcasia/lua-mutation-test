@@ -74,6 +74,10 @@ pub struct RunArgs {
     /// Output path for the generated report.
     #[arg(long)]
     pub report_output: Option<PathBuf>,
+
+    /// Number of parallel workers for mutant execution.
+    #[arg(long)]
+    pub workers: Option<usize>,
 }
 
 /// Exit codes used by the binary.
