@@ -58,7 +58,12 @@ impl Mutant {
         let original = source[candidate.start_byte..candidate.end_byte].to_string();
         let position = byte_offset_to_position(source, candidate.start_byte)
             .unwrap_or(crate::position::Position { line: 1, column: 1 });
-        let id = compute_mutant_id(&file, candidate.start_byte, candidate.end_byte, &candidate.replacement);
+        let id = compute_mutant_id(
+            &file,
+            candidate.start_byte,
+            candidate.end_byte,
+            &candidate.replacement,
+        );
 
         Self {
             id,
@@ -74,12 +79,7 @@ impl Mutant {
     }
 }
 
-fn compute_mutant_id(
-    file: &Path,
-    start_byte: usize,
-    end_byte: usize,
-    replacement: &str,
-) -> String {
+fn compute_mutant_id(file: &Path, start_byte: usize, end_byte: usize, replacement: &str) -> String {
     let mut hasher = DefaultHasher::new();
     file.to_string_lossy().hash(&mut hasher);
     start_byte.hash(&mut hasher);
@@ -100,12 +100,7 @@ impl MutantGenerator {
     }
 
     /// Generates mutants for the given file and parsed source.
-    pub fn generate(
-        &self,
-        file: impl AsRef<Path>,
-        source: &str,
-        tree: &Tree,
-    ) -> Vec<Mutant> {
+    pub fn generate(&self, file: impl AsRef<Path>, source: &str, tree: &Tree) -> Vec<Mutant> {
         let file = file.as_ref();
         let mut seen = HashSet::new();
         let mut mutants = Vec::new();
@@ -119,7 +114,12 @@ impl MutantGenerator {
                     candidate.replacement.clone(),
                 );
                 if seen.insert(key) {
-                    mutants.push(Mutant::from_candidate(candidate, mutator.id(), file, source));
+                    mutants.push(Mutant::from_candidate(
+                        candidate,
+                        mutator.id(),
+                        file,
+                        source,
+                    ));
                 }
             }
         }
@@ -198,10 +198,8 @@ mod tests {
         let mut parser = Parser::new().unwrap();
         let source = "local x = 1";
         let tree = parser.parse_source(source).unwrap();
-        let generator = MutantGenerator::new(vec![
-            Box::new(DummyMutator),
-            Box::new(AnotherDummyMutator),
-        ]);
+        let generator =
+            MutantGenerator::new(vec![Box::new(DummyMutator), Box::new(AnotherDummyMutator)]);
         let mutants = generator.generate("file.lua", source, &tree);
         assert_eq!(mutants.len(), 1);
     }

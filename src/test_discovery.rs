@@ -59,12 +59,8 @@ mod tests {
 
     #[test]
     fn discovers_default_test_patterns() {
-        let dir = temp_dir_with_files(&[
-            "foo_spec.lua",
-            "bar_test.lua",
-            "test_baz.lua",
-            "helper.lua",
-        ]);
+        let dir =
+            temp_dir_with_files(&["foo_spec.lua", "bar_test.lua", "test_baz.lua", "helper.lua"]);
         let globs: Vec<String> = DEFAULT_TEST_GLOBS.iter().map(|s| s.to_string()).collect();
         let tests = discover_tests(dir.path(), &globs);
 

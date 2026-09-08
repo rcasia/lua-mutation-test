@@ -11,7 +11,9 @@ use std::path::PathBuf;
     about = "A mutation testing tool for Lua",
     long_about = None
 )]
-#[command(after_help = "EXAMPLES:\n  lua-mutation-test run src\n  lua-mutation-test run file.lua --test-command 'busted'\n  lua-mutation-test list-operators\n  lua-mutation-test init")]
+#[command(
+    after_help = "EXAMPLES:\n  lua-mutation-test run src\n  lua-mutation-test run file.lua --test-command 'busted'\n  lua-mutation-test list-operators\n  lua-mutation-test init"
+)]
 pub struct Cli {
     /// Path to a configuration file.
     #[arg(short, long, global = true)]

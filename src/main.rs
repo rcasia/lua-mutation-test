@@ -2,6 +2,7 @@ use clap::Parser;
 use lua_mutation_test::cli::{exit, Cli, Command};
 use lua_mutation_test::config::Config;
 use lua_mutation_test::mutant::MutantGenerator;
+use lua_mutation_test::operators::default_operators;
 use lua_mutation_test::parser::Parser as LuaParser;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -53,15 +54,26 @@ fn run(cli: Cli) -> Result<i32, String> {
                 .map_err(|e| format!("failed to read {}: {e}", args.path.display()))?;
             let mut parser = LuaParser::new().map_err(|e| e.to_string())?;
             let tree = parser.parse_source(&source).map_err(|e| e.to_string())?;
-            let generator = MutantGenerator::new(Vec::new());
+            let generator = MutantGenerator::new(default_operators());
             let mutants = generator.generate(&args.path, &source, &tree);
             for mutant in mutants {
-                println!("{}", serde_json::to_string(&mutant).map_err(|e| e.to_string())?);
+                println!(
+                    "{}",
+                    serde_json::to_string(&mutant).map_err(|e| e.to_string())?
+                );
             }
             Ok(exit::SUCCESS)
         }
         Command::ListOperators => {
-            println!("Available mutation operators: (none configured yet)");
+            let operators = default_operators();
+            if operators.is_empty() {
+                println!("Available mutation operators: (none configured yet)");
+            } else {
+                println!("Available mutation operators:");
+                for operator in operators {
+                    println!("  {}", operator.id());
+                }
+            }
             Ok(exit::SUCCESS)
         }
         Command::Init => {

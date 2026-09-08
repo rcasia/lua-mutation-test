@@ -46,7 +46,9 @@ fn make_executable(path: &Path) {
 }
 
 fn with_path_prefix<F: FnOnce()>(prefix: &Path, f: F) {
-    let _guard = PATH_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let _guard = PATH_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let old = std::env::var_os("PATH");
     let new = match &old {
         Some(old) => {
@@ -112,16 +114,13 @@ fn discovers_with_custom_glob_and_runs_generic_command() {
     let runner = temp.path().join("run-tests.sh");
     make_executable(&runner);
 
-    let config = Config::new(vec!["tests/**/*.lua".to_string()]).with_test_command(
-        runner.to_str().unwrap().to_string(),
-    );
+    let config = Config::new(vec!["tests/**/*.lua".to_string()])
+        .with_test_command(runner.to_str().unwrap().to_string());
     let tests = discover_tests(temp.path(), &config.test_globs);
     assert_eq!(tests.len(), 1);
 
-    let adapter = FrameworkAdapter::from_config(
-        config.framework.as_deref(),
-        config.test_command.as_deref(),
-    );
+    let adapter =
+        FrameworkAdapter::from_config(config.framework.as_deref(), config.test_command.as_deref());
     let test_refs: Vec<&Path> = tests.iter().map(|p| p.as_path()).collect();
     let baseline = run_baseline(&adapter, &test_refs);
     assert!(baseline.passed());
