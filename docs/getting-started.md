@@ -2,78 +2,79 @@
 
 ## Prerequisites
 
-- [Rust](https://www.rust-lang.org/tools/install) toolchain (latest stable recommended).
-- [Lua](https://www.lua.org/download.html) (required in future versions for running tests against mutants).
+- A Lua interpreter in your `PATH` (needed to run your test suite against mutants).
+- (Optional) [Rust](https://www.rust-lang.org/tools/install) toolchain if you want to build from source.
 
-## Clone the repository
+## Installation
 
-```bash
-git clone git@github.com:rcasia/lua-mutation-test.git
-cd lua-mutation-test
-```
+### From GitHub Releases
 
-## Fetch the vendored grammar
+Download the pre-built binary for your platform from the
+[releases page](https://github.com/rcasia/lua-mutation-test/releases) and place it
+on your `PATH`.
 
-The Lua parser grammar is vendored in `tree-sitter-lua/` (gitignored). Fetch it with:
+The archive contains both `lua-mutation-test` and the shorter `lmut` alias.
 
-```bash
-./scripts/fetch-tree-sitter-lua.sh
-```
-
-## Build
+### From crates.io
 
 ```bash
-cargo build
+cargo install lua-mutation-test
 ```
 
-## Run tests
+### From source
+
+See [CONTRIBUTING.md](https://github.com/rcasia/lua-mutation-test/blob/main/CONTRIBUTING.md)
+for the development setup.
+
+## Quick start
+
+Run mutation testing against a file or directory:
 
 ```bash
-cargo test
+lmut run <path-to-lua-file-or-directory>
 ```
 
-Integration tests run the tool against sample Lua projects in `tests/fixtures/`
-and require a Lua interpreter in your `PATH`.
-
-## Run benchmarks
+Run with a custom test command and timeout:
 
 ```bash
-cargo bench
+lmut run src --test-command 'busted' --timeout 30
 ```
 
-The Criterion benchmark suite measures end-to-end mutation execution time on the
-sample projects in `tests/fixtures/`.
-
-## Install pre-commit hooks
-
-This project uses [pre-commit](https://pre-commit.com/) to run checks before each
-commit.
+Create a sample configuration file:
 
 ```bash
-pip install pre-commit
-pre-commit install
+lmut init
 ```
 
-The hooks run file hygiene checks, `cargo fmt`, `cargo clippy`, `cargo test`, and
-`mkdocs build`. Install the MkDocs dependencies so the docs hook can run:
+## Configuration
 
-```bash
-pip install -r docs/requirements.txt
+Create a `.lua-mutation-test.toml` (or `.lua-mutation-test.json`) file in your project root:
+
+```toml
+version = "1"
+test_command = "busted"
+timeout = 30
+test_globs = ["*_spec.lua", "*_test.lua", "test_*.lua"]
+source_globs = ["*.lua"]
+
+[files]
+exclude = ["*_test.lua", "*_spec.lua"]
+
+[operators]
+exclude = ["control_flow"]
 ```
 
-## Run the CLI
-
-After building, run mutation testing against a file or directory using the `lmut`
-binary (or `lua-mutation-test`; both names are equivalent):
-
-```bash
-./target/debug/lmut run <path-to-lua-file-or-directory>
-```
+CLI flags override configuration file values.
 
 ## CLI Reference
 
 See the [CLI Reference](cli-reference.md) for the complete list of subcommands,
 options, and exit codes.
+
+## Contributing
+
+See [CONTRIBUTING.md](https://github.com/rcasia/lua-mutation-test/blob/main/CONTRIBUTING.md)
+for development setup, workflow guidelines, and commit conventions.
 
 ## Versioning
 
