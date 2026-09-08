@@ -94,6 +94,9 @@ Create a sample configuration file:
 cargo run -- init
 ```
 
+See the [CLI Reference](https://rcasia.github.io/lua-mutation-test/cli-reference/) for the
+full list of commands and options.
+
 Once built, you can also run the binary directly:
 
 ```bash
