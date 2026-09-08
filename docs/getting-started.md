@@ -63,6 +63,11 @@ Once built, you can also run the binary directly:
 ./target/debug/lua-mutation-test <path-to-lua-file>
 ```
 
+## CLI Reference
+
+See the [CLI Reference](cli-reference.md) for the complete list of subcommands,
+options, and exit codes.
+
 ## Versioning
 
 This project follows [ZeroVer](https://0ver.org/): all releases remain in the `0.x`

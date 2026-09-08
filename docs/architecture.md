@@ -33,7 +33,8 @@ scores.
 
 - Parses command-line arguments and configuration files.
 - Selects files, operators, and test runner.
-- Entry point for `run`, `list-operators`, `init`, and `watch` subcommands.
+- Entry point for `run`, `list-mutants`, `list-operators`, and `init` subcommands.
+- See the [CLI Reference](cli-reference.md) for the complete command documentation.
 
 ### Lua Parser
 

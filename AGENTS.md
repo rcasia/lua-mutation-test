@@ -64,7 +64,7 @@ Documentation lives in `docs/` and is published with MkDocs.
 | If you change... | Update these docs |
 |---|---|
 | Build process, dependency setup, or CLI usage | `README.md`, `docs/getting-started.md` |
-| CLI commands, flags, or configuration options | `README.md`, `docs/getting-started.md`, `docs/architecture.md` |
+| CLI commands, flags, or configuration options | `README.md`, `docs/getting-started.md`, `docs/cli-reference.md`, `docs/architecture.md` |
 | Parser, AST traversal, or mutation generation | `docs/architecture.md` |
 | Test runner integration or mutant execution | `docs/architecture.md` |
 | Reporting, scoring, or output formats | `docs/architecture.md` |
@@ -78,6 +78,7 @@ The site is configured in `mkdocs.yml`:
 - `docs/index.md` — project overview and WIP notice
 - `docs/getting-started.md` — setup, build, and usage instructions
 - `docs/architecture.md` — high-level architecture and component diagram
+- `docs/cli-reference.md` — full CLI command and option reference
 - `docs/adrs/` — Architecture Decision Records
 
 When adding a new top-level page, update both `docs/` and the `nav:` section of
