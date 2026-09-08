@@ -4,7 +4,7 @@ use crate::mutant::Mutant;
 use crate::mutant_validation::write_mutant_to_temp;
 use crate::result::{interpret, MutantResult, RunnerSignal};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
@@ -104,6 +104,8 @@ fn execute_command(config: &RunnerConfig, temp_dir: &Path) -> (RunnerSignal, Str
     let mut command = Command::new(&config.command[0]);
     command.args(&config.command[1..]);
     command.current_dir(temp_dir);
+    command.stdout(Stdio::piped());
+    command.stderr(Stdio::piped());
 
     let child = match command.spawn() {
         Ok(child) => child,
@@ -132,15 +134,9 @@ fn wait_with_timeout(
 ) -> Result<Output, std::io::Error> {
     let start = Instant::now();
     loop {
-        match child.try_wait() {
-            Ok(Some(status)) => {
-                return Ok(Output {
-                    status,
-                    stdout: Vec::new(),
-                    stderr: Vec::new(),
-                });
-            }
-            Ok(None) => {
+        match child.try_wait()? {
+            Some(_status) => return child.wait_with_output(),
+            None => {
                 if start.elapsed() >= timeout {
                     let _ = child.kill();
                     let _ = child.wait();
@@ -151,7 +147,6 @@ fn wait_with_timeout(
                 }
                 std::thread::sleep(Duration::from_millis(10));
             }
-            Err(e) => return Err(e),
         }
     }
 }
