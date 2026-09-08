@@ -63,16 +63,11 @@ pip install -r docs/requirements.txt
 
 ## Run the CLI
 
-The current CLI demonstrates Lua parsing via tree-sitter:
+After building, run mutation testing against a file or directory using the `lmut`
+binary (or `lua-mutation-test`; both names are equivalent):
 
 ```bash
-cargo run -- <path-to-lua-file>
-```
-
-Once built, you can also run the binary directly. The shorter alias `lmut` is available and preferred in examples; the full `lua-mutation-test` name works identically:
-
-```bash
-./target/debug/lmut <path-to-lua-file>
+./target/debug/lmut run <path-to-lua-file-or-directory>
 ```
 
 ## CLI Reference
