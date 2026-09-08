@@ -1,6 +1,6 @@
 use lua_mutation_test::adapter::FrameworkAdapter;
 use lua_mutation_test::baseline::run_baseline;
-use lua_mutation_test::config::Config;
+use lua_mutation_test::config::{Config, DEFAULT_CONFIG_PATH};
 use lua_mutation_test::mutant::MutantGenerator;
 use lua_mutation_test::operators::default_operators;
 use lua_mutation_test::parser::Parser as LuaParser;
@@ -53,7 +53,7 @@ fn make_executable(path: &Path) {
 fn run_fixture(name: &str) -> (Vec<MutantResult>, Vec<PathBuf>) {
     let temp = copy_fixture_to_temp(name);
     let project_root = temp.path().to_path_buf();
-    let config_path = project_root.join(".lua-mutation-test.toml");
+    let config_path = project_root.join(DEFAULT_CONFIG_PATH);
     let config = Config::from_file(&config_path).expect("failed to load fixture config");
 
     let test_command = config.test_command.clone().expect("test command required");

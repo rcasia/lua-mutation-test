@@ -2,7 +2,7 @@ use clap::Parser;
 use lua_mutation_test::adapter::FrameworkAdapter;
 use lua_mutation_test::baseline::run_baseline;
 use lua_mutation_test::cli::{exit, Cli, Command, RunArgs, WatchArgs};
-use lua_mutation_test::config::Config;
+use lua_mutation_test::config::{Config, DEFAULT_CONFIG_PATH};
 use lua_mutation_test::incremental;
 use lua_mutation_test::mutant::MutantGenerator;
 use lua_mutation_test::operators::default_operators;
@@ -75,7 +75,7 @@ fn run(cli: Cli) -> Result<i32, String> {
         }
         Command::Init => {
             std::fs::write(
-                ".lua-mutation-test.toml",
+                DEFAULT_CONFIG_PATH,
                 r#"version = "1"
 test_command = "busted"
 timeout = 30
@@ -84,7 +84,7 @@ source_globs = ["*.lua"]
 "#,
             )
             .map_err(|e| format!("failed to write sample config: {e}"))?;
-            println!("Created .lua-mutation-test.toml");
+            println!("Created {DEFAULT_CONFIG_PATH}");
             Ok(exit::SUCCESS)
         }
     }
@@ -292,7 +292,7 @@ fn discover_source_files(path: &Path, globs: &[String]) -> Result<Vec<PathBuf>, 
 }
 
 fn default_config_path() -> PathBuf {
-    PathBuf::from(".lua-mutation-test.toml")
+    PathBuf::from(DEFAULT_CONFIG_PATH)
 }
 
 fn config_from_cli(cli: &Cli) -> Config {

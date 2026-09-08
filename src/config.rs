@@ -3,6 +3,9 @@
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
+/// Default configuration file name.
+pub const DEFAULT_CONFIG_PATH: &str = ".lua-mutation-test.toml";
+
 /// Versioned project configuration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Config {
