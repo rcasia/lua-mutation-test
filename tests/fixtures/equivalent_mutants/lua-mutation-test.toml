@@ -1,0 +1,4 @@
+version = "1"
+test_command = "./run-tests.sh"
+source_globs = ["src/*.lua"]
+test_globs = ["test_*.lua"]

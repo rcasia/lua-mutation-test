@@ -45,6 +45,9 @@ pub struct Mutant {
     pub original: String,
     /// Replacement source text.
     pub replacement: String,
+    /// Reason this mutant is classified as likely equivalent, if any.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub equivalent_reason: Option<String>,
 }
 
 impl Mutant {
@@ -76,7 +79,14 @@ impl Mutant {
             column: position.column,
             original,
             replacement: candidate.replacement,
+            equivalent_reason: None,
         }
+    }
+
+    /// Marks this mutant as likely equivalent with the given reason.
+    pub fn with_equivalent_reason(mut self, reason: impl Into<String>) -> Self {
+        self.equivalent_reason = Some(reason.into());
+        self
     }
 }
 
@@ -101,10 +111,26 @@ impl MutantGenerator {
     }
 
     /// Generates mutants for the given file and parsed source.
+    ///
+    /// Likely-equivalent mutants are filtered out. Use
+    /// [`Self::generate_with_equivalents`] when equivalent mutants should be
+    /// reported separately.
     pub fn generate(&self, file: impl AsRef<Path>, source: &str, tree: &Tree) -> Vec<Mutant> {
+        self.generate_with_equivalents(file, source, tree).0
+    }
+
+    /// Generates mutants and returns both executable mutants and likely-equivalent
+    /// mutants detected by static heuristics.
+    pub fn generate_with_equivalents(
+        &self,
+        file: impl AsRef<Path>,
+        source: &str,
+        tree: &Tree,
+    ) -> (Vec<Mutant>, Vec<Mutant>) {
         let file = file.as_ref();
         let mut seen = HashSet::new();
-        let mut mutants = Vec::new();
+        let mut executable = Vec::new();
+        let mut equivalent = Vec::new();
 
         for mutator in &self.mutators {
             for candidate in mutator.generate(source, tree) {
@@ -114,31 +140,39 @@ impl MutantGenerator {
                     candidate.end_byte,
                     candidate.replacement.clone(),
                 );
-                if seen.insert(key) {
-                    mutants.push(Mutant::from_candidate(
-                        candidate,
-                        mutator.id(),
-                        file,
-                        source,
-                    ));
+                if !seen.insert(key) {
+                    continue;
+                }
+
+                let mutant = Mutant::from_candidate(candidate.clone(), mutator.id(), file, source);
+                if let Some(reason) =
+                    crate::equivalent_heuristics::classify(source, tree, &candidate)
+                {
+                    equivalent.push(mutant.with_equivalent_reason(reason));
+                } else {
+                    executable.push(mutant);
                 }
             }
         }
 
-        mutants
+        (executable, equivalent)
     }
 
     /// Generates mutants and keeps only those that are syntactically valid Lua.
+    ///
+    /// Returns `(valid, invalid, equivalent)` where `equivalent` contains mutants
+    /// classified as likely equivalent by static heuristics.
     pub fn generate_validated(
         &self,
         file: impl AsRef<Path>,
         source: &str,
         tree: &Tree,
-    ) -> (Vec<Mutant>, Vec<(Mutant, String)>) {
+    ) -> (Vec<Mutant>, Vec<(Mutant, String)>, Vec<Mutant>) {
         let mut valid = Vec::new();
         let mut invalid = Vec::new();
 
-        for mutant in self.generate(file, source, tree) {
+        let (executable, equivalent) = self.generate_with_equivalents(file, source, tree);
+        for mutant in executable {
             let mutated = apply_mutant(source, &mutant);
             match validate_source(&mutated) {
                 crate::mutant_validation::MutantOutcome::Valid => valid.push(mutant),
@@ -146,7 +180,7 @@ impl MutantGenerator {
             }
         }
 
-        (valid, invalid)
+        (valid, invalid, equivalent)
     }
 }
 

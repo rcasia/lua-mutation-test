@@ -36,6 +36,9 @@ pub enum Command {
     /// Run mutation testing against the given path.
     Run(RunArgs),
 
+    /// Watch source files and re-run mutation tests incrementally.
+    Watch(WatchArgs),
+
     /// List generated mutants for a source file.
     ListMutants(ListMutantsArgs),
 
@@ -47,14 +50,14 @@ pub enum Command {
 }
 
 /// Arguments for the `list-mutants` subcommand.
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 pub struct ListMutantsArgs {
     /// Path to a Lua source file.
     pub path: PathBuf,
 }
 
 /// Arguments for the `run` subcommand.
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 pub struct RunArgs {
     /// Path to a Lua file or directory to mutate.
     pub path: PathBuf,
@@ -74,6 +77,29 @@ pub struct RunArgs {
     /// Output path for the generated report.
     #[arg(long)]
     pub report_output: Option<PathBuf>,
+
+    /// Number of parallel workers for mutant execution.
+    #[arg(long)]
+    pub workers: Option<usize>,
+}
+
+/// Arguments for the `watch` subcommand.
+#[derive(Parser, Debug, Clone)]
+pub struct WatchArgs {
+    /// Path to a Lua file or directory to mutate.
+    pub path: PathBuf,
+
+    /// Custom shell command used to run tests.
+    #[arg(long)]
+    pub test_command: Option<String>,
+
+    /// Timeout in seconds for each mutant test run.
+    #[arg(long)]
+    pub timeout: Option<u64>,
+
+    /// Debounce duration in milliseconds before re-running after a file change.
+    #[arg(long, default_value_t = 500)]
+    pub debounce: u64,
 
     /// Number of parallel workers for mutant execution.
     #[arg(long)]
@@ -154,5 +180,17 @@ mod tests {
         assert_eq!(cli.config, Some(PathBuf::from("config.toml")));
         assert!(cli.verbose);
         assert!(!cli.quiet);
+    }
+
+    #[test]
+    fn parses_watch_subcommand() {
+        let cli = Cli::parse_from(["lua-mutation-test", "watch", "src", "--debounce", "250"]);
+        match cli.command {
+            Command::Watch(args) => {
+                assert_eq!(args.path, PathBuf::from("src"));
+                assert_eq!(args.debounce, 250);
+            }
+            _ => panic!("expected watch subcommand"),
+        }
     }
 }

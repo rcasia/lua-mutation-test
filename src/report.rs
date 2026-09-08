@@ -1,7 +1,7 @@
 //! Mutation testing report generation.
 
 use crate::result::MutantResult;
-use crate::score::{score_results, Category, MutationScore, ScoreBreakdown};
+use crate::score::{score_results, MutationScore, ScoreBreakdown};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -70,6 +70,7 @@ fn summary_report(data: ReportData<'_>) -> String {
     lines.push(format!("Survived: {}", score.overall.survived));
     lines.push(format!("Timed out: {}", score.overall.timed_out));
     lines.push(format!("Errors: {}", score.overall.error));
+    lines.push(format!("Equivalent: {}", score.overall.equivalent));
     if let Some(pct) = score.overall.percentage() {
         lines.push(format!("Mutation score: {:.2}%", pct));
     } else {
@@ -82,13 +83,20 @@ fn per_mutant_report(data: ReportData<'_>) -> String {
     let mut lines = Vec::new();
     for result in data.results {
         let mutant = result.mutant();
+        let reason = match result {
+            crate::result::MutantResult::Equivalent { reason, .. } => {
+                format!(" ({reason})")
+            }
+            _ => String::new(),
+        };
         lines.push(format!(
-            "[{}] {} {}:{} -> {}",
+            "[{}] {} {}:{} -> {}{}",
             result.category(),
             mutant.id,
             mutant.file.display(),
             mutant.line,
-            mutant.replacement
+            mutant.replacement,
+            reason
         ));
         lines.push(format!("  - {}", mutant.original));
     }
@@ -121,6 +129,7 @@ struct JsonResult {
     original: String,
     replacement: String,
     category: String,
+    reason: Option<String>,
 }
 
 fn json_report(data: ReportData<'_>) -> String {
@@ -130,6 +139,10 @@ fn json_report(data: ReportData<'_>) -> String {
         .iter()
         .map(|r| {
             let m = r.mutant();
+            let reason = match r {
+                crate::result::MutantResult::Equivalent { reason, .. } => Some(reason.clone()),
+                _ => m.equivalent_reason.clone(),
+            };
             JsonResult {
                 id: m.id.clone(),
                 file: m.file.to_string_lossy().to_string(),
@@ -139,6 +152,7 @@ fn json_report(data: ReportData<'_>) -> String {
                 original: m.original.clone(),
                 replacement: m.replacement.clone(),
                 category: r.category().to_string(),
+                reason,
             }
         })
         .collect();
@@ -175,14 +189,21 @@ fn html_report(data: ReportData<'_>) -> String {
     let mut rows = String::new();
     for result in data.results {
         let m = result.mutant();
+        let reason = match result {
+            crate::result::MutantResult::Equivalent { reason, .. } => {
+                format!("<br><small>{}</small>", html_escape(reason))
+            }
+            _ => String::new(),
+        };
         rows.push_str(&format!(
-            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td><code>{}</code> -> <code>{}</code></td></tr>\n",
+            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td><code>{}</code> -> <code>{}</code>{}</td></tr>\n",
             result.category(),
             m.id,
             m.file.display(),
             m.line,
             html_escape(&m.original),
-            html_escape(&m.replacement)
+            html_escape(&m.replacement),
+            reason
         ));
     }
 
@@ -234,6 +255,7 @@ fn html_escape(text: &str) -> String {
 mod tests {
     use super::*;
     use crate::mutant::{CandidateMutant, Mutant};
+    use crate::score::Category;
     use std::path::PathBuf;
 
     fn dummy_result(category: Category) -> MutantResult {
@@ -273,6 +295,10 @@ mod tests {
                 mutant,
                 stdout_snippet: String::new(),
                 stderr_snippet: String::new(),
+            },
+            Category::Equivalent => MutantResult::Equivalent {
+                mutant,
+                reason: String::new(),
             },
         }
     }

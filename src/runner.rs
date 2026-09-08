@@ -44,20 +44,28 @@ pub fn run_mutant(config: &RunnerConfig, mutant: &Mutant, source: &str) -> Mutan
     let tmp_dir = std::env::temp_dir().join(format!("lmt-mutant-{}-{}", mutant.id, run_id));
     let _ = std::fs::remove_dir_all(&tmp_dir);
 
-    let temp_path = match write_mutant_to_temp(&tmp_dir, &config.project_root, mutant, source) {
-        Ok(path) => path,
-        Err(e) => {
-            return interpret(
-                mutant.clone(),
-                RunnerSignal::RunnerError(format!("failed to write temp file: {e}")),
-                "",
-                "",
-                config.snippet_limit,
-            );
-        }
-    };
+    if let Err(e) = copy_dir_all(&config.project_root, &tmp_dir) {
+        return interpret(
+            mutant.clone(),
+            RunnerSignal::RunnerError(format!("failed to copy project to temp dir: {e}")),
+            "",
+            "",
+            config.snippet_limit,
+        );
+    }
 
-    let (signal, stdout, stderr) = execute_command(config, &temp_path);
+    if let Err(e) = write_mutant_to_temp(&tmp_dir, &config.project_root, mutant, source) {
+        let _ = std::fs::remove_dir_all(&tmp_dir);
+        return interpret(
+            mutant.clone(),
+            RunnerSignal::RunnerError(format!("failed to write temp file: {e}")),
+            "",
+            "",
+            config.snippet_limit,
+        );
+    }
+
+    let (signal, stdout, stderr) = execute_command(config, &tmp_dir);
     let _ = std::fs::remove_dir_all(&tmp_dir);
 
     let _elapsed = start.elapsed();
@@ -70,7 +78,21 @@ pub fn run_mutant(config: &RunnerConfig, mutant: &Mutant, source: &str) -> Mutan
     )
 }
 
-fn execute_command(config: &RunnerConfig, _temp_path: &Path) -> (RunnerSignal, String, String) {
+fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> std::io::Result<()> {
+    std::fs::create_dir_all(&dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        if ty.is_dir() {
+            copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        } else {
+            std::fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        }
+    }
+    Ok(())
+}
+
+fn execute_command(config: &RunnerConfig, temp_dir: &Path) -> (RunnerSignal, String, String) {
     if config.command.is_empty() {
         return (
             RunnerSignal::RunnerError("no test command configured".to_string()),
@@ -81,7 +103,7 @@ fn execute_command(config: &RunnerConfig, _temp_path: &Path) -> (RunnerSignal, S
 
     let mut command = Command::new(&config.command[0]);
     command.args(&config.command[1..]);
-    command.current_dir(&config.project_root);
+    command.current_dir(temp_dir);
 
     let child = match command.spawn() {
         Ok(child) => child,
@@ -140,28 +162,52 @@ mod tests {
     use crate::mutant::{CandidateMutant, Mutant};
     use std::path::PathBuf;
 
-    fn dummy_mutant(source: &str) -> Mutant {
-        Mutant::from_candidate(
+    fn temp_project_root() -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "lmt-runner-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn dummy_mutant(source: &str) -> (Mutant, PathBuf) {
+        let project_root = temp_project_root();
+        let mutant = Mutant::from_candidate(
             CandidateMutant {
                 start_byte: 0,
                 end_byte: 0,
                 replacement: String::new(),
             },
             "dummy",
-            PathBuf::from("src/foo.lua"),
+            project_root.join("src/foo.lua"),
             source,
-        )
+        );
+        (mutant, project_root)
+    }
+
+    fn config_with_root(project_root: PathBuf, command: Vec<String>) -> RunnerConfig {
+        RunnerConfig {
+            command,
+            timeout: Duration::from_secs(1),
+            project_root,
+            snippet_limit: 1000,
+        }
     }
 
     #[test]
     fn surviving_mutant_when_command_passes() {
         let source = "local x = 1";
-        let mutant = dummy_mutant(source);
-        let config = RunnerConfig {
-            command: vec!["sh".to_string(), "-c".to_string(), "exit 0".to_string()],
-            timeout: Duration::from_secs(1),
-            ..Default::default()
-        };
+        let (mutant, project_root) = dummy_mutant(source);
+        let config = config_with_root(
+            project_root,
+            vec!["sh".to_string(), "-c".to_string(), "exit 0".to_string()],
+        );
         let run = run_mutant(&config, &mutant, source);
         assert!(matches!(run, MutantResult::Survived { .. }));
     }
@@ -169,12 +215,11 @@ mod tests {
     #[test]
     fn killed_mutant_when_command_fails() {
         let source = "local x = 1";
-        let mutant = dummy_mutant(source);
-        let config = RunnerConfig {
-            command: vec!["sh".to_string(), "-c".to_string(), "exit 1".to_string()],
-            timeout: Duration::from_secs(1),
-            ..Default::default()
-        };
+        let (mutant, project_root) = dummy_mutant(source);
+        let config = config_with_root(
+            project_root,
+            vec!["sh".to_string(), "-c".to_string(), "exit 1".to_string()],
+        );
         let run = run_mutant(&config, &mutant, source);
         assert!(matches!(run, MutantResult::Killed { .. }));
     }
@@ -182,11 +227,14 @@ mod tests {
     #[test]
     fn records_timeout() {
         let source = "local x = 1";
-        let mutant = dummy_mutant(source);
+        let (mutant, project_root) = dummy_mutant(source);
+        let config = config_with_root(
+            project_root,
+            vec!["sh".to_string(), "-c".to_string(), "sleep 10".to_string()],
+        );
         let config = RunnerConfig {
-            command: vec!["sh".to_string(), "-c".to_string(), "sleep 10".to_string()],
             timeout: Duration::from_millis(50),
-            ..Default::default()
+            ..config
         };
         let run = run_mutant(&config, &mutant, source);
         assert!(matches!(run, MutantResult::TimedOut { .. }));
@@ -195,12 +243,11 @@ mod tests {
     #[test]
     fn records_spawn_error() {
         let source = "local x = 1";
-        let mutant = dummy_mutant(source);
-        let config = RunnerConfig {
-            command: vec!["this-command-does-not-exist-12345".to_string()],
-            timeout: Duration::from_secs(1),
-            ..Default::default()
-        };
+        let (mutant, project_root) = dummy_mutant(source);
+        let config = config_with_root(
+            project_root,
+            vec!["this-command-does-not-exist-12345".to_string()],
+        );
         let run = run_mutant(&config, &mutant, source);
         assert!(matches!(run, MutantResult::Error { .. }));
     }

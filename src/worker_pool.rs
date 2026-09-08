@@ -90,7 +90,22 @@ mod tests {
     use std::path::PathBuf;
     use std::time::Duration;
 
+    fn temp_project_root() -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "lmt-pool-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
     fn dummy_job(id: &str) -> MutantJob {
+        let project_root = temp_project_root();
         MutantJob {
             mutant: Mutant::from_candidate(
                 CandidateMutant {
@@ -99,22 +114,42 @@ mod tests {
                     replacement: String::new(),
                 },
                 "dummy",
-                PathBuf::from(format!("src/{id}.lua")),
+                project_root.join(format!("src/{id}.lua")),
                 "local x = 1",
             ),
             source: "local x = 1".to_string(),
         }
     }
 
+    fn config_for(jobs: &[MutantJob], command: Vec<String>) -> RunnerConfig {
+        let project_root = jobs
+            .first()
+            .map(|j| {
+                j.mutant
+                    .file
+                    .parent()
+                    .unwrap()
+                    .parent()
+                    .unwrap()
+                    .to_path_buf()
+            })
+            .unwrap_or_else(temp_project_root);
+        RunnerConfig {
+            command,
+            timeout: Duration::from_secs(1),
+            project_root,
+            snippet_limit: 1000,
+        }
+    }
+
     #[test]
     fn runs_mutants_in_parallel() {
         let pool = WorkerPool::new(2).unwrap();
-        let config = RunnerConfig {
-            command: vec!["sh".to_string(), "-c".to_string(), "exit 0".to_string()],
-            timeout: Duration::from_secs(1),
-            ..Default::default()
-        };
         let jobs = vec![dummy_job("a"), dummy_job("b"), dummy_job("c")];
+        let config = config_for(
+            &jobs,
+            vec!["sh".to_string(), "-c".to_string(), "exit 0".to_string()],
+        );
         let results = pool.run_mutants(&config, jobs, None);
         assert_eq!(results.len(), 3);
         assert!(results
@@ -130,12 +165,11 @@ mod tests {
     #[test]
     fn results_are_deterministic() {
         let pool = WorkerPool::new(2).unwrap();
-        let config = RunnerConfig {
-            command: vec!["sh".to_string(), "-c".to_string(), "exit 1".to_string()],
-            timeout: Duration::from_secs(1),
-            ..Default::default()
-        };
         let jobs = vec![dummy_job("a"), dummy_job("b")];
+        let config = config_for(
+            &jobs,
+            vec!["sh".to_string(), "-c".to_string(), "exit 1".to_string()],
+        );
         let first: Vec<_> = pool
             .run_mutants(&config, jobs.clone(), None)
             .into_iter()

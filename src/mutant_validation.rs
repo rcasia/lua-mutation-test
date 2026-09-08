@@ -71,10 +71,7 @@ impl SourceMap {
     pub fn for_mutant(mutant: &Mutant, original_line_count: usize) -> Self {
         let mut lines = HashMap::new();
         for line in 1..=original_line_count {
-            lines.insert(
-                (mutant.id.clone(), line),
-                (mutant.file.clone(), line),
-            );
+            lines.insert((mutant.id.clone(), line), (mutant.file.clone(), line));
         }
         Self { lines }
     }

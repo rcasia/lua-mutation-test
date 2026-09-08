@@ -30,6 +30,8 @@ pub enum MutantResult {
         stdout_snippet: String,
         stderr_snippet: String,
     },
+    /// The mutant was classified as likely equivalent and skipped.
+    Equivalent { mutant: Mutant, reason: String },
 }
 
 /// Signal that distinguishes runner failures from test failures.
@@ -85,7 +87,13 @@ fn snippet(text: &str, limit: usize) -> String {
     if text.len() <= limit {
         text.to_string()
     } else {
-        text.chars().rev().take(limit).collect::<Vec<_>>().into_iter().rev().collect()
+        text.chars()
+            .rev()
+            .take(limit)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect()
     }
 }
 
@@ -97,6 +105,7 @@ impl MutantResult {
             MutantResult::Killed { mutant, .. } => mutant,
             MutantResult::TimedOut { mutant, .. } => mutant,
             MutantResult::Error { mutant, .. } => mutant,
+            MutantResult::Equivalent { mutant, .. } => mutant,
         }
     }
 
@@ -107,6 +116,7 @@ impl MutantResult {
             MutantResult::Killed { .. } => "killed",
             MutantResult::TimedOut { .. } => "timed_out",
             MutantResult::Error { .. } => "error",
+            MutantResult::Equivalent { .. } => "equivalent",
         }
     }
 }

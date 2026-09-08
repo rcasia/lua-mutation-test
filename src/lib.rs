@@ -3,6 +3,8 @@ pub mod ast;
 pub mod baseline;
 pub mod cli;
 pub mod config;
+pub mod equivalent_heuristics;
+pub mod incremental;
 pub mod literal_unary_operator;
 pub mod mutant;
 pub mod mutant_validation;

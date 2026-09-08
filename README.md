@@ -8,9 +8,8 @@
 
 A mutation testing tool for Lua, written in Rust.
 
-`lua-mutation-test` parses Lua source code with [tree-sitter](https://tree-sitter.github.io/tree-sitter/)
-and will eventually generate mutants, run your test suite against them, and report
-mutation scores.
+`lua-mutation-test` parses Lua source code with [tree-sitter](https://tree-sitter.github.io/tree-sitter/),
+generates mutants, runs your test suite against them, and reports mutation scores.
 
 ---
 
@@ -23,21 +22,22 @@ mutation scores.
 ### Current
 
 - Parse Lua source code using a vendored [tree-sitter-lua](https://github.com/tree-sitter-grammars/tree-sitter-lua) grammar.
-- Rust CLI scaffolding.
+- Generate mutants from Lua source code (arithmetic, relational, logical, and control-flow operators).
+- Run a given Lua test suite against each mutant with process isolation and timeouts.
+- Compute and report mutation scores (summary, JSON, and HTML).
+- Static heuristics that detect likely-equivalent mutants (e.g., `x + 0`) before execution.
+- Configurable mutation operators and ignore patterns.
 
 ### Planned
 
-- Generate mutants from Lua source code (e.g., relational operator swaps, arithmetic
-  operator swaps, boolean literal flips).
-- Run a given Lua test suite against each mutant.
-- Compute and report mutation scores.
-- Configurable mutation operators and ignore patterns.
+- Additional mutation operators.
+- More equivalent-mutant heuristics.
 
 ## Prerequisites
 
 - [Rust](https://www.rust-lang.org/tools/install) toolchain (latest stable recommended).
-- [Lua](https://www.lua.org/download.html) (required in future versions for running
-  tests against mutants).
+- [Lua](https://www.lua.org/download.html) (required for running tests against mutants and for the
+  integration test suite).
 
 ## Setup
 
@@ -66,6 +66,12 @@ mutation scores.
 
    ```bash
    cargo test
+   ```
+
+5. Run the benchmarks:
+
+   ```bash
+   cargo bench
    ```
 
 ## Usage
@@ -103,8 +109,7 @@ Once built, you can also run the binary directly:
 ./target/debug/lua-mutation-test run <path-to-lua-file-or-directory>
 ```
 
-> Note: Full mutation-testing functionality is still being implemented. The current
-> CLI provides the entry point and dispatch layer for upcoming workflows.
+> Note: The project is a work in progress. APIs, CLI flags, and behavior may change.
 
 ## Configuration
 
@@ -146,8 +151,12 @@ cargo run -- run src --report-format html --report-output report.html
 
 - **Rust CLI**: Entry point and orchestration.
 - **tree-sitter Lua parser**: Vendored grammar used to parse Lua source into an AST.
-- Future components will include mutant generation, test runner integration, and
-  score reporting.
+- **Mutant generator**: Applies configurable mutation operators and detects likely-equivalent mutants with static heuristics.
+- **Test runner**: Runs the test suite against each mutant in an isolated temporary copy of the project.
+- **Reporter**: Computes mutation scores and emits summary, JSON, or HTML reports.
+
+See [docs/architecture.md](docs/architecture.md) for more details, including the
+list of known equivalent-mutant patterns.
 
 ## Versioning
 

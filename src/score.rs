@@ -11,6 +11,7 @@ pub enum Category {
     TimedOut,
     Error,
     Skipped,
+    Equivalent,
 }
 
 /// Counts and percentage for a set of mutant results.
@@ -21,17 +22,18 @@ pub struct MutationScore {
     pub timed_out: usize,
     pub error: usize,
     pub skipped: usize,
+    pub equivalent: usize,
 }
 
 impl MutationScore {
     /// Total number of mutants represented.
     pub fn total(&self) -> usize {
-        self.killed + self.survived + self.timed_out + self.error + self.skipped
+        self.killed + self.survived + self.timed_out + self.error + self.skipped + self.equivalent
     }
 
     /// Number of mutants counted in the score denominator.
     ///
-    /// By default, errors and timeouts are excluded.
+    /// By default, errors, timeouts, and likely-equivalent mutants are excluded.
     pub fn denominator(&self) -> usize {
         self.killed + self.survived + self.skipped
     }
@@ -61,6 +63,7 @@ impl MutationScore {
             Category::TimedOut => self.timed_out += 1,
             Category::Error => self.error += 1,
             Category::Skipped => self.skipped += 1,
+            Category::Equivalent => self.equivalent += 1,
         }
     }
 }
@@ -72,6 +75,7 @@ pub fn categorize(result: &MutantResult) -> Category {
         MutantResult::Survived { .. } => Category::Survived,
         MutantResult::TimedOut { .. } => Category::TimedOut,
         MutantResult::Error { .. } => Category::Error,
+        MutantResult::Equivalent { .. } => Category::Equivalent,
     }
 }
 
@@ -166,6 +170,10 @@ mod tests {
                 stdout_snippet: String::new(),
                 stderr_snippet: String::new(),
             },
+            Category::Equivalent => MutantResult::Equivalent {
+                mutant,
+                reason: String::new(),
+            },
         }
     }
 
@@ -203,7 +211,9 @@ mod tests {
         ];
         let breakdown = score_results(&results);
         assert_eq!(breakdown.overall.total(), 2);
-        assert!(breakdown.by_file.contains_key(&PathBuf::from("src/foo.lua")));
+        assert!(breakdown
+            .by_file
+            .contains_key(&PathBuf::from("src/foo.lua")));
         assert!(breakdown.by_operator.contains_key("dummy"));
     }
 

@@ -32,6 +32,18 @@ cargo build
 cargo test
 ```
 
+Integration tests run the tool against sample Lua projects in `tests/fixtures/`
+and require a Lua interpreter in your `PATH`.
+
+## Run benchmarks
+
+```bash
+cargo bench
+```
+
+The Criterion benchmark suite measures end-to-end mutation execution time on the
+sample projects in `tests/fixtures/`.
+
 ## Install pre-commit hooks
 
 This project uses [pre-commit](https://pre-commit.com/) to run checks before each
