@@ -75,7 +75,7 @@ fn run(cli: Cli) -> Result<i32, String> {
         }
         Command::Init => {
             std::fs::write(
-                "lua-mutation-test.toml",
+                ".lua-mutation-test.toml",
                 r#"version = "1"
 test_command = "busted"
 timeout = 30
@@ -84,7 +84,7 @@ source_globs = ["*.lua"]
 "#,
             )
             .map_err(|e| format!("failed to write sample config: {e}"))?;
-            println!("Created lua-mutation-test.toml");
+            println!("Created .lua-mutation-test.toml");
             Ok(exit::SUCCESS)
         }
     }

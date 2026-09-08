@@ -67,7 +67,7 @@ fn discover_source_files(path: &Path, globs: &[String]) -> Vec<PathBuf> {
 fn run_fixture(name: &str) {
     let temp = copy_fixture_to_temp(name);
     let project_root = temp.path().to_path_buf();
-    let config_path = project_root.join("lua-mutation-test.toml");
+    let config_path = project_root.join(".lua-mutation-test.toml");
     let config = Config::from_file(&config_path).expect("failed to load fixture config");
 
     let test_command = config.test_command.clone().expect("test command required");
