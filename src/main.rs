@@ -187,7 +187,7 @@ where
             let reason = m.equivalent_reason.clone().unwrap_or_default();
             lua_mutation_test::result::MutantResult::Equivalent { mutant: m, reason }
         }));
-        if (i + 1) % 10 == 0 || i + 1 == source_files.len() {
+        if (i + 1).is_multiple_of(10) || i + 1 == source_files.len() {
             eprintln!(
                 "  processed {}/{} source file(s), {} mutant(s) so far",
                 i + 1,

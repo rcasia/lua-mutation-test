@@ -86,6 +86,8 @@ pub struct CacheEntry {
     pub config_hash: String,
     /// Result category: killed, survived, timed_out, or error.
     pub result_category: String,
+    /// Execution duration in milliseconds.
+    pub duration_ms: u64,
     /// Cached stdout snippet.
     pub stdout_snippet: String,
     /// Cached stderr snippet.
@@ -98,50 +100,59 @@ impl CacheEntry {
     /// Builds a cache entry from a mutant result.
     pub fn from_result(result: &MutantResult, config_hash: &str) -> Self {
         let mutant = result.mutant();
-        let (result_category, stdout_snippet, stderr_snippet, reason) = match result {
+        let (result_category, duration_ms, stdout_snippet, stderr_snippet, reason) = match result {
             MutantResult::Killed {
+                duration_ms,
                 stdout_snippet,
                 stderr_snippet,
                 ..
             } => (
                 "killed".to_string(),
+                *duration_ms,
                 stdout_snippet.clone(),
                 stderr_snippet.clone(),
                 None,
             ),
             MutantResult::Survived {
+                duration_ms,
                 stdout_snippet,
                 stderr_snippet,
                 ..
             } => (
                 "survived".to_string(),
+                *duration_ms,
                 stdout_snippet.clone(),
                 stderr_snippet.clone(),
                 None,
             ),
             MutantResult::TimedOut {
+                duration_ms,
                 stdout_snippet,
                 stderr_snippet,
                 ..
             } => (
                 "timed_out".to_string(),
+                *duration_ms,
                 stdout_snippet.clone(),
                 stderr_snippet.clone(),
                 None,
             ),
             MutantResult::Error {
+                duration_ms,
                 reason,
                 stdout_snippet,
                 stderr_snippet,
                 ..
             } => (
                 "error".to_string(),
+                *duration_ms,
                 stdout_snippet.clone(),
                 stderr_snippet.clone(),
                 Some(reason.clone()),
             ),
             MutantResult::Equivalent { reason, .. } => (
                 "equivalent".to_string(),
+                0,
                 String::new(),
                 String::new(),
                 Some(reason.clone()),
@@ -153,6 +164,7 @@ impl CacheEntry {
             mutant_id: mutant.id.clone(),
             config_hash: config_hash.to_string(),
             result_category,
+            duration_ms,
             stdout_snippet,
             stderr_snippet,
             reason,
@@ -165,16 +177,19 @@ pub fn result_from_entry(mutant: Mutant, entry: &CacheEntry) -> MutantResult {
     match entry.result_category.as_str() {
         "killed" => MutantResult::Killed {
             mutant,
+            duration_ms: entry.duration_ms,
             stdout_snippet: entry.stdout_snippet.clone(),
             stderr_snippet: entry.stderr_snippet.clone(),
         },
         "survived" => MutantResult::Survived {
             mutant,
+            duration_ms: entry.duration_ms,
             stdout_snippet: entry.stdout_snippet.clone(),
             stderr_snippet: entry.stderr_snippet.clone(),
         },
         "timed_out" => MutantResult::TimedOut {
             mutant,
+            duration_ms: entry.duration_ms,
             stdout_snippet: entry.stdout_snippet.clone(),
             stderr_snippet: entry.stderr_snippet.clone(),
         },
@@ -187,6 +202,7 @@ pub fn result_from_entry(mutant: Mutant, entry: &CacheEntry) -> MutantResult {
         },
         _ => MutantResult::Error {
             mutant,
+            duration_ms: entry.duration_ms,
             reason: entry
                 .reason
                 .clone()
@@ -247,16 +263,19 @@ mod tests {
         let result = match category {
             "killed" => MutantResult::Killed {
                 mutant: mutant.clone(),
+                duration_ms: 10,
                 stdout_snippet: "out".to_string(),
                 stderr_snippet: "err".to_string(),
             },
             "survived" => MutantResult::Survived {
                 mutant: mutant.clone(),
+                duration_ms: 10,
                 stdout_snippet: "out".to_string(),
                 stderr_snippet: "err".to_string(),
             },
             _ => MutantResult::Error {
                 mutant: mutant.clone(),
+                duration_ms: 0,
                 reason: "boom".to_string(),
                 stdout_snippet: String::new(),
                 stderr_snippet: String::new(),
@@ -304,8 +323,10 @@ mod tests {
     #[test]
     fn config_hash_changes_with_config() {
         let cfg1 = Config::default();
-        let mut cfg2 = Config::default();
-        cfg2.timeout = Some(42);
+        let cfg2 = Config {
+            timeout: Some(42),
+            ..Default::default()
+        };
         assert_ne!(config_hash(&cfg1), config_hash(&cfg2));
     }
 }

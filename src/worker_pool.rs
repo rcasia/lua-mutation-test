@@ -74,7 +74,7 @@ impl WorkerPool {
             pool.install(|| {
                 jobs.into_par_iter().for_each(|job| {
                     thread_local! {
-                        static RUNNER: RefCell<Option<MutantRunner>> = RefCell::new(None);
+                        static RUNNER: RefCell<Option<MutantRunner>> = const { RefCell::new(None) };
                     }
                     let result = RUNNER.with(|runner| {
                         let mut runner = runner.borrow_mut();
@@ -126,7 +126,7 @@ impl Progress {
     /// Increments the completed counter and prints progress.
     pub fn increment(&self) {
         let completed = self.completed.fetch_add(1, Ordering::SeqCst) + 1;
-        if completed % 10 == 0 || completed == self.total {
+        if completed.is_multiple_of(10) || completed == self.total {
             eprintln!(
                 "  progress: {}/{} ({:.0}%)",
                 completed,

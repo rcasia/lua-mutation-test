@@ -100,6 +100,7 @@ pub fn run_mutant(config: &RunnerConfig, mutant: &Mutant, source: &str) -> Mutan
             "",
             "",
             config.snippet_limit,
+            0,
         );
     }
 
@@ -111,19 +112,21 @@ pub fn run_mutant(config: &RunnerConfig, mutant: &Mutant, source: &str) -> Mutan
             "",
             "",
             config.snippet_limit,
+            0,
         );
     }
 
     let (signal, stdout, stderr) = execute_command(config, &tmp_dir);
     let _ = std::fs::remove_dir_all(&tmp_dir);
 
-    let _elapsed = start.elapsed();
+    let elapsed = start.elapsed();
     interpret(
         mutant.clone(),
         signal,
         &stdout,
         &stderr,
         config.snippet_limit,
+        elapsed.as_millis() as u64,
     )
 }
 
@@ -171,7 +174,9 @@ impl MutantRunner {
         }
 
         // Run the tests against the mutated project copy.
+        let start = Instant::now();
         let (signal, stdout, stderr) = execute_command(&self.config, &self.temp_dir);
+        let duration_ms = start.elapsed().as_millis() as u64;
 
         // Restore the original source so the next mutant sees a clean project.
         let _ = std::fs::write(&dest, source);
@@ -182,6 +187,7 @@ impl MutantRunner {
             &stdout,
             &stderr,
             self.config.snippet_limit,
+            duration_ms,
         )
     }
 
@@ -192,6 +198,7 @@ impl MutantRunner {
             "",
             "",
             self.config.snippet_limit,
+            0,
         )
     }
 }

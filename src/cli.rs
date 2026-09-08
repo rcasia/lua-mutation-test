@@ -70,7 +70,7 @@ pub struct RunArgs {
     #[arg(long)]
     pub timeout: Option<u64>,
 
-    /// Report format: summary, per-mutant, json, html.
+    /// Report format: summary, per-mutant, json, ctrf, html.
     #[arg(long)]
     pub report_format: Option<String>,
 

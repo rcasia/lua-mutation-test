@@ -24,7 +24,7 @@ generates mutants, runs your test suite against them, and reports mutation score
 - Parse Lua source code using a vendored [tree-sitter-lua](https://github.com/tree-sitter-grammars/tree-sitter-lua) grammar.
 - Generate mutants from Lua source code (arithmetic, relational, logical, and control-flow operators).
 - Run a given Lua test suite against each mutant with process isolation and timeouts.
-- Compute and report mutation scores (summary, JSON, and HTML).
+- Compute and report mutation scores (summary, per-mutant, JSON, CTRF, and HTML).
 - Static heuristics that detect likely-equivalent mutants (e.g., `x + 0`) before execution.
 - Configurable mutation operators and ignore patterns.
 
@@ -144,6 +144,7 @@ Generate reports after a run:
 
 ```bash
 cargo run -- run src --report-format json --report-output report.json
+cargo run -- run src --report-format ctrf --report-output ctrf-report.json
 cargo run -- run src --report-format html --report-output report.html
 ```
 
@@ -153,7 +154,7 @@ cargo run -- run src --report-format html --report-output report.html
 - **tree-sitter Lua parser**: Vendored grammar used to parse Lua source into an AST.
 - **Mutant generator**: Applies configurable mutation operators and detects likely-equivalent mutants with static heuristics.
 - **Test runner**: Runs the test suite against each mutant in an isolated temporary copy of the project.
-- **Reporter**: Computes mutation scores and emits summary, JSON, or HTML reports.
+- **Reporter**: Computes mutation scores and emits summary, per-mutant, JSON, CTRF, or HTML reports.
 
 See [docs/architecture.md](docs/architecture.md) for more details, including the
 list of known equivalent-mutant patterns.

@@ -106,7 +106,7 @@ pub fn run_incremental(
             .insert(key, CacheEntry::from_result(&result, &config_hash));
         new_results.push(result);
 
-        if new_results.len() % save_every == 0 {
+        if new_results.len().is_multiple_of(save_every) {
             cache.save(project_root)?;
         }
 
@@ -220,7 +220,7 @@ mod tests {
             &dir,
             &config,
             &runner_config,
-            &[file.clone()],
+            std::slice::from_ref(&file),
             mutants.clone(),
             1,
         )
@@ -230,7 +230,7 @@ mod tests {
 
         // Second run: cache hit.
         let second =
-            run_incremental(&dir, &config, &runner_config, &[file.clone()], mutants, 1).unwrap();
+            run_incremental(&dir, &config, &runner_config, std::slice::from_ref(&file), mutants, 1).unwrap();
         assert_eq!(second.ran, 0);
         assert_eq!(second.cached, 1);
 
@@ -257,7 +257,7 @@ mod tests {
             &dir,
             &config,
             &runner_config,
-            &[file.clone()],
+            std::slice::from_ref(&file),
             mutants.clone(),
             1,
         )
@@ -267,7 +267,7 @@ mod tests {
         std::fs::write(&file, "local x = 2").unwrap();
 
         let second =
-            run_incremental(&dir, &config, &runner_config, &[file.clone()], mutants, 1).unwrap();
+            run_incremental(&dir, &config, &runner_config, std::slice::from_ref(&file), mutants, 1).unwrap();
         assert_eq!(second.ran, 1);
         assert_eq!(second.cached, 0);
 
@@ -297,14 +297,14 @@ mod tests {
             &dir,
             &config1,
             &runner_config,
-            &[file.clone()],
+            std::slice::from_ref(&file),
             mutants.clone(),
             1,
         )
         .unwrap();
 
         let second =
-            run_incremental(&dir, &config2, &runner_config, &[file.clone()], mutants, 1).unwrap();
+            run_incremental(&dir, &config2, &runner_config, std::slice::from_ref(&file), mutants, 1).unwrap();
         assert_eq!(second.ran, 1);
         assert_eq!(second.cached, 0);
 

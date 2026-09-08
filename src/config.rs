@@ -23,7 +23,7 @@ pub const DEFAULT_CONFIG_PATH: &str = ".lua-mutation-test.toml";
 /// | `medium` | 5 |
 /// | `hard` | 10 |
 /// | `very_hard` | unlimited |
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Difficulty {
     VeryEasy,
@@ -31,13 +31,8 @@ pub enum Difficulty {
     Normal,
     Medium,
     Hard,
+    #[default]
     VeryHard,
-}
-
-impl Default for Difficulty {
-    fn default() -> Self {
-        Difficulty::VeryHard
-    }
 }
 
 impl FromStr for Difficulty {

@@ -8,24 +8,28 @@ pub enum MutantResult {
     /// The test suite passed, so the mutant survived.
     Survived {
         mutant: Mutant,
+        duration_ms: u64,
         stdout_snippet: String,
         stderr_snippet: String,
     },
     /// The test suite failed, so the mutant was killed.
     Killed {
         mutant: Mutant,
+        duration_ms: u64,
         stdout_snippet: String,
         stderr_snippet: String,
     },
     /// The test run did not finish within the timeout.
     TimedOut {
         mutant: Mutant,
+        duration_ms: u64,
         stdout_snippet: String,
         stderr_snippet: String,
     },
     /// The runner could not execute the mutant (e.g., missing executable, invalid mutant).
     Error {
         mutant: Mutant,
+        duration_ms: u64,
         reason: String,
         stdout_snippet: String,
         stderr_snippet: String,
@@ -54,6 +58,7 @@ pub fn interpret(
     stdout: &str,
     stderr: &str,
     snippet_limit: usize,
+    duration_ms: u64,
 ) -> MutantResult {
     let stdout_snippet = snippet(stdout, snippet_limit);
     let stderr_snippet = snippet(stderr, snippet_limit);
@@ -61,22 +66,26 @@ pub fn interpret(
     match signal {
         RunnerSignal::RunnerError(reason) => MutantResult::Error {
             mutant,
+            duration_ms,
             reason,
             stdout_snippet,
             stderr_snippet,
         },
         RunnerSignal::TimedOut => MutantResult::TimedOut {
             mutant,
+            duration_ms,
             stdout_snippet,
             stderr_snippet,
         },
         RunnerSignal::Exited(0) => MutantResult::Survived {
             mutant,
+            duration_ms,
             stdout_snippet,
             stderr_snippet,
         },
         RunnerSignal::Exited(_) => MutantResult::Killed {
             mutant,
+            duration_ms,
             stdout_snippet,
             stderr_snippet,
         },
@@ -142,19 +151,19 @@ mod tests {
 
     #[test]
     fn exit_zero_maps_to_survived() {
-        let result = interpret(dummy_mutant(), RunnerSignal::Exited(0), "", "", 100);
+        let result = interpret(dummy_mutant(), RunnerSignal::Exited(0), "", "", 100, 42);
         assert!(matches!(result, MutantResult::Survived { .. }));
     }
 
     #[test]
     fn non_zero_exit_maps_to_killed() {
-        let result = interpret(dummy_mutant(), RunnerSignal::Exited(1), "", "", 100);
+        let result = interpret(dummy_mutant(), RunnerSignal::Exited(1), "", "", 100, 42);
         assert!(matches!(result, MutantResult::Killed { .. }));
     }
 
     #[test]
     fn timeout_maps_to_timed_out() {
-        let result = interpret(dummy_mutant(), RunnerSignal::TimedOut, "", "", 100);
+        let result = interpret(dummy_mutant(), RunnerSignal::TimedOut, "", "", 100, 42);
         assert!(matches!(result, MutantResult::TimedOut { .. }));
     }
 
@@ -166,6 +175,7 @@ mod tests {
             "",
             "",
             100,
+            42,
         );
         assert!(matches!(result, MutantResult::Error { .. }));
     }
@@ -174,7 +184,14 @@ mod tests {
     fn captures_output_snippets() {
         let stdout = "hello world";
         let stderr = "error details";
-        let result = interpret(dummy_mutant(), RunnerSignal::Exited(1), stdout, stderr, 100);
+        let result = interpret(
+            dummy_mutant(),
+            RunnerSignal::Exited(1),
+            stdout,
+            stderr,
+            100,
+            42,
+        );
         match result {
             MutantResult::Killed {
                 stdout_snippet,
@@ -191,7 +208,7 @@ mod tests {
     #[test]
     fn bounds_long_output_snippets() {
         let output = "a".repeat(200);
-        let result = interpret(dummy_mutant(), RunnerSignal::Exited(1), &output, "", 50);
+        let result = interpret(dummy_mutant(), RunnerSignal::Exited(1), &output, "", 50, 42);
         match result {
             MutantResult::Killed { stdout_snippet, .. } => {
                 assert_eq!(stdout_snippet.len(), 50);

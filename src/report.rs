@@ -14,6 +14,8 @@ pub enum ReportFormat {
     PerMutant,
     /// Machine-readable JSON.
     Json,
+    /// Common Test Report Format (CTRF) JSON.
+    Ctrf,
     /// Self-contained HTML page.
     Html,
 }
@@ -26,6 +28,7 @@ impl std::str::FromStr for ReportFormat {
             "summary" => Ok(ReportFormat::Summary),
             "per-mutant" => Ok(ReportFormat::PerMutant),
             "json" => Ok(ReportFormat::Json),
+            "ctrf" => Ok(ReportFormat::Ctrf),
             "html" => Ok(ReportFormat::Html),
             _ => Err(format!("unknown report format: {s}")),
         }
@@ -50,6 +53,7 @@ pub fn generate_report(
         ReportFormat::Summary => summary_report(data),
         ReportFormat::PerMutant => per_mutant_report(data),
         ReportFormat::Json => json_report(data),
+        ReportFormat::Ctrf => ctrf_report(data),
         ReportFormat::Html => html_report(data),
     };
 
@@ -176,6 +180,167 @@ fn json_report(data: ReportData<'_>) -> String {
     serde_json::to_string_pretty(&report).unwrap_or_default()
 }
 
+fn ctrf_report(data: ReportData<'_>) -> String {
+    let score = score_results(data.results);
+    let start = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+
+    let mut passed = 0;
+    let mut failed = 0;
+    let mut skipped = 0;
+    let mut other = 0;
+
+    let tests: Vec<CtrfTest> = data
+        .results
+        .iter()
+        .map(|r| {
+            let (status, ctrf_status) = match r {
+                MutantResult::Killed { .. } => {
+                    passed += 1;
+                    ("killed", "passed")
+                }
+                MutantResult::Survived { .. } => {
+                    failed += 1;
+                    ("survived", "failed")
+                }
+                MutantResult::TimedOut { .. } => {
+                    other += 1;
+                    ("timed_out", "other")
+                }
+                MutantResult::Error { .. } => {
+                    other += 1;
+                    ("error", "other")
+                }
+                MutantResult::Equivalent { .. } => {
+                    skipped += 1;
+                    ("equivalent", "skipped")
+                }
+            };
+            let m = r.mutant();
+            let duration = match r {
+                MutantResult::Killed { duration_ms, .. } => *duration_ms,
+                MutantResult::Survived { duration_ms, .. } => *duration_ms,
+                MutantResult::TimedOut { duration_ms, .. } => *duration_ms,
+                MutantResult::Error { duration_ms, .. } => *duration_ms,
+                MutantResult::Equivalent { .. } => 0,
+            };
+            CtrfTest {
+                name: format!(
+                    "{} {}:{} -> {}",
+                    m.operator,
+                    m.file.display(),
+                    m.line,
+                    m.replacement
+                ),
+                status: ctrf_status.to_string(),
+                duration,
+                file_path: Some(m.file.to_string_lossy().to_string()),
+                line: Some(m.line),
+                suite: Some(vec![m.operator.clone()]),
+                extra: Some(serde_json::json!({
+                    "lua-mutation-test.mutant_id": m.id,
+                    "lua-mutation-test.category": status,
+                    "lua-mutation-test.operator": m.operator,
+                    "lua-mutation-test.original": m.original,
+                    "lua-mutation-test.replacement": m.replacement,
+                    "lua-mutation-test.line": m.line,
+                    "lua-mutation-test.column": m.column,
+                })),
+            }
+        })
+        .collect();
+
+    let report = CtrfReport {
+        report_format: "CTRF".to_string(),
+        spec_version: "0.0.0".to_string(),
+        timestamp: Some(chrono_now()),
+        generated_by: Some("lua-mutation-test".to_string()),
+        results: CtrfResults {
+            tool: CtrfTool {
+                name: "lua-mutation-test".to_string(),
+                version: Some(env!("CARGO_PKG_VERSION").to_string()),
+                extra: None,
+            },
+            summary: CtrfSummary {
+                tests: score.overall.total(),
+                passed,
+                failed,
+                pending: 0,
+                skipped,
+                other,
+                start,
+                stop: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis() as u64)
+                    .unwrap_or(0),
+                extra: None,
+            },
+            tests,
+            environment: None,
+            extra: None,
+        },
+        extra: None,
+    };
+
+    serde_json::to_string_pretty(&report).unwrap_or_default()
+}
+
+#[derive(Serialize, Deserialize)]
+struct CtrfReport {
+    #[serde(rename = "reportFormat")]
+    report_format: String,
+    #[serde(rename = "specVersion")]
+    spec_version: String,
+    timestamp: Option<String>,
+    #[serde(rename = "generatedBy")]
+    generated_by: Option<String>,
+    results: CtrfResults,
+    extra: Option<serde_json::Value>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct CtrfResults {
+    tool: CtrfTool,
+    summary: CtrfSummary,
+    tests: Vec<CtrfTest>,
+    environment: Option<serde_json::Value>,
+    extra: Option<serde_json::Value>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct CtrfTool {
+    name: String,
+    version: Option<String>,
+    extra: Option<serde_json::Value>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct CtrfSummary {
+    tests: usize,
+    passed: usize,
+    failed: usize,
+    pending: usize,
+    skipped: usize,
+    other: usize,
+    start: u64,
+    stop: u64,
+    extra: Option<serde_json::Value>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct CtrfTest {
+    name: String,
+    status: String,
+    duration: u64,
+    #[serde(rename = "filePath")]
+    file_path: Option<String>,
+    line: Option<usize>,
+    suite: Option<Vec<String>>,
+    extra: Option<serde_json::Value>,
+}
+
 fn chrono_now() -> String {
     // Fallback that avoids adding chrono dependency for a single timestamp.
     std::time::SystemTime::now()
@@ -272,27 +437,32 @@ mod tests {
         match category {
             Category::Killed => MutantResult::Killed {
                 mutant,
+                duration_ms: 10,
                 stdout_snippet: String::new(),
                 stderr_snippet: String::new(),
             },
             Category::Survived => MutantResult::Survived {
                 mutant,
+                duration_ms: 20,
                 stdout_snippet: String::new(),
                 stderr_snippet: String::new(),
             },
             Category::TimedOut => MutantResult::TimedOut {
                 mutant,
+                duration_ms: 30,
                 stdout_snippet: String::new(),
                 stderr_snippet: String::new(),
             },
             Category::Error => MutantResult::Error {
                 mutant,
+                duration_ms: 40,
                 reason: String::new(),
                 stdout_snippet: String::new(),
                 stderr_snippet: String::new(),
             },
             Category::Skipped => MutantResult::Survived {
                 mutant,
+                duration_ms: 50,
                 stdout_snippet: String::new(),
                 stderr_snippet: String::new(),
             },
@@ -340,6 +510,19 @@ mod tests {
         let report = generate_report(ReportFormat::Html, dummy_data(), None).unwrap();
         assert!(report.contains("<table>"));
         assert!(report.contains("</table>"));
+    }
+
+    #[test]
+    fn ctrf_report_contains_required_fields() {
+        let report = generate_report(ReportFormat::Ctrf, dummy_data(), None).unwrap();
+        assert!(report.contains("\"reportFormat\": \"CTRF\""));
+        assert!(report.contains("\"specVersion\": \"0.0.0\""));
+        assert!(report.contains("\"summary\""));
+        assert!(report.contains("\"tests\""));
+        assert!(report.contains("\"passed\""));
+        assert!(report.contains("\"failed\""));
+        assert!(report.contains("\"skipped\""));
+        assert!(report.contains("\"other\""));
     }
 
     #[test]

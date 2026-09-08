@@ -28,11 +28,9 @@ pub fn discover_tests(root: &Path, globs: &[String]) -> Vec<PathBuf> {
             Err(_) => continue,
         };
 
-        for entry in matches {
-            if let Ok(path) = entry {
-                if path.is_file() {
-                    discovered.insert(path);
-                }
+        for path in matches.flatten() {
+            if path.is_file() {
+                discovered.insert(path);
             }
         }
     }

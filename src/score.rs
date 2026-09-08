@@ -146,27 +146,32 @@ mod tests {
         match category {
             Category::Killed => MutantResult::Killed {
                 mutant,
+                duration_ms: 0,
                 stdout_snippet: String::new(),
                 stderr_snippet: String::new(),
             },
             Category::Survived => MutantResult::Survived {
                 mutant,
+                duration_ms: 0,
                 stdout_snippet: String::new(),
                 stderr_snippet: String::new(),
             },
             Category::TimedOut => MutantResult::TimedOut {
                 mutant,
+                duration_ms: 0,
                 stdout_snippet: String::new(),
                 stderr_snippet: String::new(),
             },
             Category::Error => MutantResult::Error {
                 mutant,
+                duration_ms: 0,
                 reason: String::new(),
                 stdout_snippet: String::new(),
                 stderr_snippet: String::new(),
             },
             Category::Skipped => MutantResult::Survived {
                 mutant,
+                duration_ms: 0,
                 stdout_snippet: String::new(),
                 stderr_snippet: String::new(),
             },

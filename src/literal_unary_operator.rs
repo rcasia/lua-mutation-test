@@ -107,8 +107,8 @@ fn mutate_number(text: &str) -> Vec<String> {
         replacements.push("1".to_string());
     } else {
         // Fallback for non-decimal numeric literals (e.g. hexadecimal).
-        if text.starts_with('-') {
-            replacements.push(text[1..].to_string());
+        if let Some(stripped) = text.strip_prefix('-') {
+            replacements.push(stripped.to_string());
         } else {
             replacements.push(format!("-{}", text));
         }

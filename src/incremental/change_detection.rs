@@ -136,7 +136,7 @@ mod tests {
         );
 
         fs::write(&file, "modified").unwrap();
-        let changed = hash_based_changed_files(&cached, &[file.clone()]);
+        let changed = hash_based_changed_files(&cached, std::slice::from_ref(&file));
         assert_eq!(changed.len(), 1);
         assert_eq!(changed[0], file);
 
@@ -155,7 +155,7 @@ mod tests {
             file_hash(&file).unwrap(),
         );
 
-        let changed = hash_based_changed_files(&cached, &[file.clone()]);
+        let changed = hash_based_changed_files(&cached, std::slice::from_ref(&file));
         assert!(changed.is_empty());
 
         let _ = fs::remove_dir_all(&dir);

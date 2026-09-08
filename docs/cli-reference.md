@@ -40,13 +40,15 @@ lua-mutation-test run <PATH> [OPTIONS]
 |--------|-------------|
 | `--test-command <COMMAND>` | Custom shell command used to run tests. |
 | `--timeout <SECONDS>` | Timeout in seconds for each mutant test run. |
-| `--output <FORMAT>` | Output format or file path for the report. |
+| `--report-format <FORMAT>` | Report format: `summary`, `per-mutant`, `json`, `ctrf`, `html`. |
+| `--report-output <PATH>` | Write the generated report to this path. |
 
 #### Examples
 
 ```bash
 lua-mutation-test run src
-lua-mutation-test run file.lua --test-command 'busted' --timeout 30 --output json
+lua-mutation-test run file.lua --test-command 'busted' --timeout 30 --report-format json
+lua-mutation-test run src --report-format ctrf --report-output ctrf-report.json
 ```
 
 ### `list-mutants`
