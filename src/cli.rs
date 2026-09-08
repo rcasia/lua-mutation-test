@@ -8,7 +8,7 @@ use std::path::PathBuf;
 #[command(
     name = "lua-mutation-test",
     bin_name = "lua-mutation-test",
-    version,
+    version = env!("LMT_GIT_VERSION"),
     about = "A mutation testing tool for Lua",
     long_about = None
 )]
