@@ -22,7 +22,7 @@ generates mutants, runs your test suite against them, and reports mutation score
 ### Current
 
 - Parse Lua source code using a vendored [tree-sitter-lua](https://github.com/tree-sitter-grammars/tree-sitter-lua) grammar.
-- Generate mutants from Lua source code (arithmetic, relational, logical, and control-flow operators).
+- Generate mutants from Lua source code (arithmetic, relational, logical, literal, unary, and control-flow operators).
 - Run a given Lua test suite against each mutant with process isolation and timeouts.
 - Compute and report mutation scores (summary, per-mutant, JSON, CTRF, and HTML).
 - Static heuristics that detect likely-equivalent mutants (e.g., `x + 0`) before execution.
@@ -33,53 +33,34 @@ generates mutants, runs your test suite against them, and reports mutation score
 - Additional mutation operators.
 - More equivalent-mutant heuristics.
 
-## Prerequisites
+## Installation
 
-- [Rust](https://www.rust-lang.org/tools/install) toolchain (latest stable recommended).
-- [Lua](https://www.lua.org/download.html) (required for running tests against mutants and for the
-  integration test suite).
+### From GitHub Releases
 
-## Setup
+Download the pre-built binary for your platform from the
+[releases page](https://github.com/rcasia/lua-mutation-test/releases) and place it
+on your `PATH`.
 
-1. Clone the repository:
+The release archive contains both the `lua-mutation-test` binary and the shorter
+`lmut` alias.
 
-   ```bash
-   git clone git@github.com:rcasia/lua-mutation-test.git
-   cd lua-mutation-test
-   ```
+### From crates.io
 
-2. Fetch the vendored tree-sitter Lua grammar:
+```bash
+cargo install lua-mutation-test
+```
 
-   ```bash
-   ./scripts/fetch-tree-sitter-lua.sh
-   ```
+This installs the `lua-mutation-test` binary. The `lmut` alias is included.
 
-   The grammar is cloned into `tree-sitter-lua/` (gitignored).
+### From source
 
-3. Build the project:
-
-   ```bash
-   cargo build
-   ```
-
-4. Run the tests:
-
-   ```bash
-   cargo test
-   ```
-
-5. Run the benchmarks:
-
-   ```bash
-   cargo bench
-   ```
+If you prefer to build from source, see [CONTRIBUTING.md](CONTRIBUTING.md) for the
+development setup.
 
 ## Usage
 
-After building, the shorter alias `lmut` is available at `./target/debug/lmut` (or
-`./target/release/lmut` for release builds). The full `lua-mutation-test` name works
-identically. The examples below use `lmut` directly; add the `./target/debug/`
-prefix if you have not installed the binary on your `PATH`.
+The examples below use the `lmut` binary. The full `lua-mutation-test` name works
+identically.
 
 Run mutation testing against a file or directory:
 
@@ -165,24 +146,8 @@ This project follows [ZeroVer](https://0ver.org/): all releases will remain in t
 
 ## Contributing
 
-This project follows [trunk-based development](https://trunkbaseddevelopment.com/).
-Work on short-lived branches or directly on `main`, keep commits small and focused,
-and push to `origin/main` frequently.
-
-## Pre-commit hooks
-
-This project uses [pre-commit](https://pre-commit.com/) to run checks before each
-commit. Install it with:
-
-```bash
-pip install pre-commit
-pre-commit install
-```
-
-The configured hooks run file hygiene checks, `cargo fmt`, `cargo clippy`,
-`cargo test`, and `mkdocs build`. Make sure you have the Rust toolchain and
-MkDocs dependencies installed (`pip install -r docs/requirements.txt`) so all
-hooks can run.
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for
+development setup, workflow guidelines, and commit conventions.
 
 ## License
 
