@@ -11,4 +11,5 @@ pub mod parser;
 pub mod position;
 pub mod result;
 pub mod runner;
+pub mod score;
 pub mod test_discovery;
