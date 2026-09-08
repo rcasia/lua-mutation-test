@@ -229,8 +229,15 @@ mod tests {
         assert_eq!(first.cached, 0);
 
         // Second run: cache hit.
-        let second =
-            run_incremental(&dir, &config, &runner_config, std::slice::from_ref(&file), mutants, 1).unwrap();
+        let second = run_incremental(
+            &dir,
+            &config,
+            &runner_config,
+            std::slice::from_ref(&file),
+            mutants,
+            1,
+        )
+        .unwrap();
         assert_eq!(second.ran, 0);
         assert_eq!(second.cached, 1);
 
@@ -266,8 +273,15 @@ mod tests {
         // Modify the source file.
         std::fs::write(&file, "local x = 2").unwrap();
 
-        let second =
-            run_incremental(&dir, &config, &runner_config, std::slice::from_ref(&file), mutants, 1).unwrap();
+        let second = run_incremental(
+            &dir,
+            &config,
+            &runner_config,
+            std::slice::from_ref(&file),
+            mutants,
+            1,
+        )
+        .unwrap();
         assert_eq!(second.ran, 1);
         assert_eq!(second.cached, 0);
 
@@ -303,8 +317,15 @@ mod tests {
         )
         .unwrap();
 
-        let second =
-            run_incremental(&dir, &config2, &runner_config, std::slice::from_ref(&file), mutants, 1).unwrap();
+        let second = run_incremental(
+            &dir,
+            &config2,
+            &runner_config,
+            std::slice::from_ref(&file),
+            mutants,
+            1,
+        )
+        .unwrap();
         assert_eq!(second.ran, 1);
         assert_eq!(second.cached, 0);
 
