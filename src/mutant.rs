@@ -1,5 +1,6 @@
 //! Mutant representation, generation, and serialization.
 
+use crate::mutant_validation::{apply_mutant, validate_source};
 use crate::position::byte_offset_to_position;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
@@ -125,6 +126,27 @@ impl MutantGenerator {
         }
 
         mutants
+    }
+
+    /// Generates mutants and keeps only those that are syntactically valid Lua.
+    pub fn generate_validated(
+        &self,
+        file: impl AsRef<Path>,
+        source: &str,
+        tree: &Tree,
+    ) -> (Vec<Mutant>, Vec<(Mutant, String)>) {
+        let mut valid = Vec::new();
+        let mut invalid = Vec::new();
+
+        for mutant in self.generate(file, source, tree) {
+            let mutated = apply_mutant(source, &mutant);
+            match validate_source(&mutated) {
+                crate::mutant_validation::MutantOutcome::Valid => valid.push(mutant),
+                crate::mutant_validation::MutantOutcome::Error(msg) => invalid.push((mutant, msg)),
+            }
+        }
+
+        (valid, invalid)
     }
 }
 

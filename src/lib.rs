@@ -5,6 +5,7 @@ pub mod cli;
 pub mod config;
 pub mod literal_unary_operator;
 pub mod mutant;
+pub mod mutant_validation;
 pub mod operators;
 pub mod parser;
 pub mod position;
