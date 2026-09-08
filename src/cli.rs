@@ -34,11 +34,21 @@ pub enum Command {
     /// Run mutation testing against the given path.
     Run(RunArgs),
 
+    /// List generated mutants for a source file.
+    ListMutants(ListMutantsArgs),
+
     /// List available mutation operators.
     ListOperators,
 
     /// Create a sample configuration file.
     Init,
+}
+
+/// Arguments for the `list-mutants` subcommand.
+#[derive(Parser, Debug)]
+pub struct ListMutantsArgs {
+    /// Path to a Lua source file.
+    pub path: PathBuf,
 }
 
 /// Arguments for the `run` subcommand.
@@ -92,6 +102,17 @@ mod tests {
                 assert_eq!(args.output, Some("json".to_string()));
             }
             _ => panic!("expected run subcommand"),
+        }
+    }
+
+    #[test]
+    fn parses_list_mutants_subcommand() {
+        let cli = Cli::parse_from(["lua-mutation-test", "list-mutants", "src/foo.lua"]);
+        match cli.command {
+            Command::ListMutants(args) => {
+                assert_eq!(args.path, PathBuf::from("src/foo.lua"));
+            }
+            _ => panic!("expected list-mutants subcommand"),
         }
     }
 

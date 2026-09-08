@@ -1,6 +1,8 @@
 use clap::Parser;
 use lua_mutation_test::cli::{exit, Cli, Command};
 use lua_mutation_test::config::Config;
+use lua_mutation_test::mutant::MutantGenerator;
+use lua_mutation_test::parser::Parser as LuaParser;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -43,6 +45,18 @@ fn run(cli: Cli) -> Result<i32, String> {
             }
             if !config.output.is_empty() {
                 println!("  output: {:?}", config.output);
+            }
+            Ok(exit::SUCCESS)
+        }
+        Command::ListMutants(args) => {
+            let source = std::fs::read_to_string(&args.path)
+                .map_err(|e| format!("failed to read {}: {e}", args.path.display()))?;
+            let mut parser = LuaParser::new().map_err(|e| e.to_string())?;
+            let tree = parser.parse_source(&source).map_err(|e| e.to_string())?;
+            let generator = MutantGenerator::new(Vec::new());
+            let mutants = generator.generate(&args.path, &source, &tree);
+            for mutant in mutants {
+                println!("{}", serde_json::to_string(&mutant).map_err(|e| e.to_string())?);
             }
             Ok(exit::SUCCESS)
         }
