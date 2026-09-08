@@ -35,7 +35,8 @@ fn main() -> ExitCode {
 
 fn run(cli: Cli) -> Result<i32, String> {
     let _ = ctrlc::set_handler(|| {
-        eprintln!("\nInterrupt received, flushing cache...");
+        eprintln!("\nInterrupt received, flushing cache and killing child processes...");
+        lua_mutation_test::runner::kill_all_child_processes();
         lua_mutation_test::incremental::set_interrupt_flag(true);
     });
 

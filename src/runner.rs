@@ -5,10 +5,57 @@ use crate::mutant_validation::write_mutant_to_temp;
 use crate::result::{interpret, MutantResult, RunnerSignal};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicI32, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 static RUN_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+/// Maximum number of child process group IDs we track for cleanup.
+const MAX_TRACKED_PIDS: usize = 128;
+
+/// Lock-free registry of active child process group IDs. Used by the interrupt
+/// handler to kill whole process trees without taking a mutex.
+static CHILD_PIDS: [AtomicI32; MAX_TRACKED_PIDS] = [const { AtomicI32::new(0) }; MAX_TRACKED_PIDS];
+
+/// Registers a child process group ID so it can be killed on interrupt.
+fn register_child_process(pid: i32) {
+    for slot in &CHILD_PIDS {
+        if slot
+            .compare_exchange(0, pid, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+        {
+            return;
+        }
+    }
+}
+
+/// Unregisters a child process group ID.
+fn unregister_child_process(pid: i32) {
+    for slot in &CHILD_PIDS {
+        if slot.load(Ordering::SeqCst) == pid {
+            slot.store(0, Ordering::SeqCst);
+            return;
+        }
+    }
+}
+
+/// Kills every registered child process group. Safe to call from a signal
+/// handler because it uses only atomic operations and `libc::kill`.
+pub fn kill_all_child_processes() {
+    #[cfg(unix)]
+    {
+        for slot in &CHILD_PIDS {
+            let pid = slot.load(Ordering::SeqCst);
+            if pid > 0 {
+                unsafe {
+                    // Negative PID sends the signal to the whole process group.
+                    libc::kill(-pid, libc::SIGKILL);
+                }
+                slot.store(0, Ordering::SeqCst);
+            }
+        }
+    }
+}
 
 /// Result of running one mutant.
 pub type MutantRun = MutantResult;
@@ -184,6 +231,20 @@ fn execute_command(config: &RunnerConfig, temp_dir: &Path) -> (RunnerSignal, Str
     command.stdout(Stdio::piped());
     command.stderr(Stdio::piped());
 
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        unsafe {
+            command.pre_exec(|| {
+                // Put the child in its own process group so we can kill the
+                // whole tree (e.g., `make test` -> `nvim`) on timeout or
+                // interrupt.
+                libc::setpgid(0, 0);
+                Ok(())
+            });
+        }
+    }
+
     let child = match command.spawn() {
         Ok(child) => child,
         Err(e) => {
@@ -195,14 +256,24 @@ fn execute_command(config: &RunnerConfig, temp_dir: &Path) -> (RunnerSignal, Str
         }
     };
 
-    match wait_with_timeout(child, config.timeout) {
+    #[cfg(unix)]
+    let pgid = child.id() as i32;
+    #[cfg(unix)]
+    register_child_process(pgid);
+
+    let result = match wait_with_timeout(child, config.timeout) {
         Ok(output) => (
             RunnerSignal::Exited(output.status.code().unwrap_or(-1)),
             String::from_utf8_lossy(&output.stdout).to_string(),
             String::from_utf8_lossy(&output.stderr).to_string(),
         ),
         Err(_) => (RunnerSignal::TimedOut, String::new(), String::new()),
-    }
+    };
+
+    #[cfg(unix)]
+    unregister_child_process(pgid);
+
+    result
 }
 
 fn wait_with_timeout(
@@ -215,7 +286,20 @@ fn wait_with_timeout(
             Some(_status) => return child.wait_with_output(),
             None => {
                 if start.elapsed() >= timeout {
-                    let _ = child.kill();
+                    #[cfg(unix)]
+                    {
+                        let pgid = child.id() as i32;
+                        unsafe {
+                            // Kill the entire process group, not just the
+                            // immediate child, so `make test` -> `nvim` trees
+                            // are cleaned up.
+                            libc::kill(-pgid, libc::SIGKILL);
+                        }
+                    }
+                    #[cfg(not(unix))]
+                    {
+                        let _ = child.kill();
+                    }
                     let _ = child.wait();
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::TimedOut,

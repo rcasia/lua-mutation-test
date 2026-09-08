@@ -558,6 +558,7 @@ dependencies = [
  "criterion",
  "ctrlc",
  "glob",
+ "libc",
  "notify",
  "rayon",
  "serde",
