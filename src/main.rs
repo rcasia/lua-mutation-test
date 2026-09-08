@@ -296,7 +296,11 @@ fn default_config_path() -> PathBuf {
 }
 
 fn config_from_cli(cli: &Cli) -> Config {
-    let mut config = Config::default();
+    let mut config = Config {
+        test_globs: Vec::new(),
+        source_globs: Vec::new(),
+        ..Config::default()
+    };
     match &cli.command {
         Command::Run(args) => {
             config.test_command = args.test_command.clone();
