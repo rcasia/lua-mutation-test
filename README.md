@@ -150,6 +150,21 @@ This project follows [trunk-based development](https://trunkbaseddevelopment.com
 Work on short-lived branches or directly on `main`, keep commits small and focused,
 and push to `origin/main` frequently.
 
+## Pre-commit hooks
+
+This project uses [pre-commit](https://pre-commit.com/) to run checks before each
+commit. Install it with:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+The configured hooks run file hygiene checks, `cargo fmt`, `cargo clippy`,
+`cargo test`, and `mkdocs build`. Make sure you have the Rust toolchain and
+MkDocs dependencies installed (`pip install -r docs/requirements.txt`) so all
+hooks can run.
+
 ## License
 
 This project is licensed under the [Apache License 2.0](LICENSE). You may use,

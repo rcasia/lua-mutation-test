@@ -1,0 +1,94 @@
+# CLI Reference
+
+`lua-mutation-test` is a command-line mutation testing tool for Lua.
+
+This page documents the available subcommands, options, and exit codes. Keep it
+in sync with `src/cli.rs`; when you add, remove, or change a CLI flag or
+command, update this page before committing.
+
+## Global options
+
+These options can be used before any subcommand.
+
+| Option | Description |
+|--------|-------------|
+| `-c`, `--config <PATH>` | Path to a configuration file. |
+| `-v`, `--verbose` | Enable verbose output. |
+| `-q`, `--quiet` | Suppress non-essential output. |
+| `-h`, `--help` | Print help information. |
+| `-V`, `--version` | Print version information. |
+
+## Subcommands
+
+### `run`
+
+Run mutation testing against a Lua file or directory.
+
+```bash
+lua-mutation-test run <PATH> [OPTIONS]
+```
+
+#### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `<PATH>` | Path to a Lua file or directory to mutate. |
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--test-command <COMMAND>` | Custom shell command used to run tests. |
+| `--timeout <SECONDS>` | Timeout in seconds for each mutant test run. |
+| `--output <FORMAT>` | Output format or file path for the report. |
+
+#### Examples
+
+```bash
+lua-mutation-test run src
+lua-mutation-test run file.lua --test-command 'busted' --timeout 30 --output json
+```
+
+### `list-mutants`
+
+List the mutants that would be generated for a given Lua source file.
+
+```bash
+lua-mutation-test list-mutants <PATH>
+```
+
+#### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `<PATH>` | Path to a Lua source file. |
+
+### `list-operators`
+
+List the available mutation operators.
+
+```bash
+lua-mutation-test list-operators
+```
+
+### `init`
+
+Create a sample configuration file in the current directory.
+
+```bash
+lua-mutation-test init
+```
+
+## Exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success. |
+| `1` | Test failures detected (mutants survived or baseline failed). |
+| `2` | CLI or configuration error. |
+
+## Configuration file
+
+The `--config` option points to a TOML or JSON file that controls operators,
+includes, excludes, and test-runner settings. See [Getting Started](getting-started.md)
+for a configuration example.

@@ -32,6 +32,23 @@ cargo build
 cargo test
 ```
 
+## Install pre-commit hooks
+
+This project uses [pre-commit](https://pre-commit.com/) to run checks before each
+commit.
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+The hooks run file hygiene checks, `cargo fmt`, `cargo clippy`, `cargo test`, and
+`mkdocs build`. Install the MkDocs dependencies so the docs hook can run:
+
+```bash
+pip install -r docs/requirements.txt
+```
+
 ## Run the CLI
 
 The current CLI demonstrates Lua parsing via tree-sitter:

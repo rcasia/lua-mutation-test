@@ -50,6 +50,7 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - Architecture: architecture.md
+  - CLI Reference: cli-reference.md
   - ADRs:
       - Overview: adrs/index.md
       - "ADR-001: Use Rust": adrs/0001-use-rust.md
