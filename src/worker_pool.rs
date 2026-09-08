@@ -2,8 +2,9 @@
 
 use crate::mutant::Mutant;
 use crate::result::MutantResult;
-use crate::runner::{run_mutant, RunnerConfig};
+use crate::runner::{run_mutant, MutantRunner, RunnerConfig};
 use rayon::{ThreadPool, ThreadPoolBuilder};
+use std::cell::RefCell;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::sync::Arc;
@@ -55,6 +56,10 @@ impl WorkerPool {
     /// Runs all mutants in parallel and streams each result through a channel
     /// as soon as it completes. The receiver can process results while the rest
     /// of the pool is still running.
+    ///
+    /// Each worker thread reuses a single project copy, restoring the original
+    /// source after every mutant so the per-mutant cost is one file write rather
+    /// than copying the whole project.
     pub fn run_mutants_streaming(
         &self,
         config: &RunnerConfig,
@@ -68,7 +73,22 @@ impl WorkerPool {
         std::thread::spawn(move || {
             pool.install(|| {
                 jobs.into_par_iter().for_each(|job| {
-                    let result = run_mutant(&config, &job.mutant, &job.source);
+                    thread_local! {
+                        static RUNNER: RefCell<Option<MutantRunner>> = RefCell::new(None);
+                    }
+                    let result = RUNNER.with(|runner| {
+                        let mut runner = runner.borrow_mut();
+                        if runner.is_none() {
+                            *runner = Some(
+                                MutantRunner::new(config.clone())
+                                    .expect("failed to create mutant runner"),
+                            );
+                        }
+                        runner
+                            .as_mut()
+                            .expect("runner initialized above")
+                            .run(&job.mutant, &job.source)
+                    });
                     if let Some(ref p) = progress {
                         p.increment();
                     }

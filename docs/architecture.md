@@ -46,7 +46,7 @@ scores.
 
 - Applies configured mutation operators to AST nodes.
 - Produces one or more mutants per mutation point.
-- Deduplicates mutants and validates that mutated sources are syntactically valid.
+- Deduplicates mutants and discards any mutation that does not produce syntactically valid Lua.
 
 ### Mutant Runner
 

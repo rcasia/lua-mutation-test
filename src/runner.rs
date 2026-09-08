@@ -37,7 +37,9 @@ impl Default for RunnerConfig {
     }
 }
 
-/// Executes the configured test command against a single mutant.
+/// Executes the configured test command against a single mutant using a fresh
+/// temporary project copy. Prefer [`MutantRunner`] when running many mutants
+/// sequentially, since it reuses a single project copy.
 pub fn run_mutant(config: &RunnerConfig, mutant: &Mutant, source: &str) -> MutantRun {
     let start = Instant::now();
     let run_id = RUN_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -76,6 +78,81 @@ pub fn run_mutant(config: &RunnerConfig, mutant: &Mutant, source: &str) -> Mutan
         &stderr,
         config.snippet_limit,
     )
+}
+
+/// A reusable runner that keeps one project copy and applies one mutation at a
+/// time. This avoids copying the whole project for every single mutant.
+pub struct MutantRunner {
+    config: RunnerConfig,
+    temp_dir: PathBuf,
+}
+
+impl MutantRunner {
+    /// Creates a runner by copying the project root into a temporary directory.
+    pub fn new(config: RunnerConfig) -> Result<Self, String> {
+        let run_id = RUN_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let temp_dir = std::env::temp_dir().join(format!("lmt-runner-{run_id}"));
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        copy_dir_all(&config.project_root, &temp_dir)
+            .map_err(|e| format!("failed to copy project to temp dir: {e}"))?;
+        Ok(Self { config, temp_dir })
+    }
+
+    /// Applies a single mutant to the reusable project copy, runs the test
+    /// command, and restores the mutated file to its original source.
+    pub fn run(&mut self, mutant: &Mutant, source: &str) -> MutantResult {
+        let relative = mutant
+            .file
+            .strip_prefix(&self.config.project_root)
+            .unwrap_or(&mutant.file);
+        let dest = self.temp_dir.join(relative);
+
+        // Ensure the parent directory exists, then restore the original source.
+        if let Some(parent) = dest.parent() {
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                return self.runner_error(mutant, &format!("failed to create temp dir: {e}"));
+            }
+        }
+        if let Err(e) = std::fs::write(&dest, source) {
+            return self.runner_error(mutant, &format!("failed to restore original file: {e}"));
+        }
+
+        // Apply the mutation.
+        let mutated = crate::mutant_validation::apply_mutant(source, mutant);
+        if let Err(e) = std::fs::write(&dest, mutated) {
+            return self.runner_error(mutant, &format!("failed to write mutant file: {e}"));
+        }
+
+        // Run the tests against the mutated project copy.
+        let (signal, stdout, stderr) = execute_command(&self.config, &self.temp_dir);
+
+        // Restore the original source so the next mutant sees a clean project.
+        let _ = std::fs::write(&dest, source);
+
+        interpret(
+            mutant.clone(),
+            signal,
+            &stdout,
+            &stderr,
+            self.config.snippet_limit,
+        )
+    }
+
+    fn runner_error(&self, mutant: &Mutant, reason: &str) -> MutantResult {
+        interpret(
+            mutant.clone(),
+            RunnerSignal::RunnerError(reason.to_string()),
+            "",
+            "",
+            self.config.snippet_limit,
+        )
+    }
+}
+
+impl Drop for MutantRunner {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.temp_dir);
+    }
 }
 
 fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> std::io::Result<()> {
