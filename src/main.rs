@@ -129,23 +129,30 @@ where
         .ok_or("no test command configured")?;
 
     // Discover tests and run baseline.
+    eprintln!("Discovering test files...");
     let tests = discover_tests(path, &config.test_globs);
+    eprintln!("  discovered {} test file(s)", tests.len());
     if tests.is_empty() {
         return Err("no test files discovered".to_string());
     }
     let adapter = FrameworkAdapter::from_config(config.framework.as_deref(), Some(&test_command));
     let test_refs: Vec<&Path> = tests.iter().map(|p| p.as_path()).collect();
+    eprintln!("Running baseline tests...");
     let baseline = run_baseline(&adapter, &test_refs);
     if !baseline.passed() {
         return Err("baseline test run failed; aborting".to_string());
     }
+    eprintln!("  baseline passed");
 
     // Discover source files and generate mutants.
+    eprintln!("Discovering source files...");
     let source_files = discover_source_files(path, &config.source_globs)?;
+    eprintln!("  discovered {} source file(s)", source_files.len());
+    eprintln!("Generating mutants...");
     let mut mutants = Vec::new();
     let mut equivalent_results = Vec::new();
     let mut parser = LuaParser::new().map_err(|e| e.to_string())?;
-    for file in &source_files {
+    for (i, file) in source_files.iter().enumerate() {
         let source = std::fs::read_to_string(file)
             .map_err(|e| format!("failed to read {}: {e}", file.display()))?;
         let tree = parser.parse_source(&source).map_err(|e| e.to_string())?;
@@ -156,7 +163,11 @@ where
             let reason = m.equivalent_reason.clone().unwrap_or_default();
             lua_mutation_test::result::MutantResult::Equivalent { mutant: m, reason }
         }));
+        if (i + 1) % 10 == 0 || i + 1 == source_files.len() {
+            eprintln!("  processed {}/{} source file(s), {} mutant(s) so far", i + 1, source_files.len(), mutants.len());
+        }
     }
+    eprintln!("  generated {} mutant(s)", mutants.len());
 
     // Run each mutant incrementally.
     let timeout = config

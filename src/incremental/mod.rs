@@ -8,9 +8,10 @@ use crate::config::Config;
 use crate::mutant::Mutant;
 use crate::result::MutantResult;
 use crate::runner::RunnerConfig;
-use crate::worker_pool::{MutantJob, WorkerPool};
+use crate::worker_pool::{MutantJob, Progress, WorkerPool};
 use cache::{result_from_entry, CacheEntry, CacheFile};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 /// Result of an incremental mutation run.
 #[derive(Debug, Clone)]
@@ -33,11 +34,13 @@ pub fn run_incremental(
     mutants: Vec<(Mutant, String)>,
     workers: usize,
 ) -> Result<IncrementalRunResult, String> {
+    eprintln!("Loading cache...");
     let config_hash = cache::config_hash(config);
     let mut cache = CacheFile::load(project_root);
 
     // Invalidate the entire cache when the configuration changes.
     if cache.config_hash != config_hash {
+        eprintln!("  configuration changed, invalidating cache");
         cache.entries.clear();
         cache.file_hashes.clear();
     }
@@ -72,10 +75,14 @@ pub fn run_incremental(
 
     let ran = jobs.len();
     let cached = cached_results.len();
+    eprintln!("  cache: {} hit(s), {} mutant(s) to run", cached, ran);
 
     // Execute mutants that were not cacheable.
     let pool = WorkerPool::new(workers)?;
-    let new_results = pool.run_mutants(runner_config, jobs, None);
+    eprintln!("Running mutants with {} worker(s)...", workers);
+    let progress = Arc::new(Progress::new(ran.max(1)));
+    let new_results = pool.run_mutants(runner_config, jobs, Some(progress));
+    eprintln!("  mutant run complete");
 
     // Update the cache with newly computed results and current file state.
     for result in &new_results {
@@ -88,6 +95,7 @@ pub fn run_incremental(
     cache.file_hashes = cache::compute_file_hashes(source_files);
     cache.config_hash = config_hash;
     cache.git_head = current_git_head(project_root);
+    eprintln!("Saving cache...");
     cache.save(project_root)?;
 
     // Merge cached and new results, preserving input order as much as possible.

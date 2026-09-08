@@ -72,11 +72,16 @@ impl Progress {
         }
     }
 
-    /// Increments the completed counter.
+    /// Increments the completed counter and prints progress.
     pub fn increment(&self) {
         let completed = self.completed.fetch_add(1, Ordering::SeqCst) + 1;
         if completed % 10 == 0 || completed == self.total {
-            eprintln!("Progress: {completed}/{}", self.total);
+            eprintln!(
+                "  progress: {}/{} ({:.0}%)",
+                completed,
+                self.total,
+                (completed as f64 / self.total.max(1) as f64) * 100.0
+            );
         }
     }
 }
