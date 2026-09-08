@@ -1,10 +1,55 @@
 //! Project configuration and filtering.
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::Path;
+use std::str::FromStr;
 
 /// Default configuration file name.
 pub const DEFAULT_CONFIG_PATH: &str = ".lua-mutation-test.toml";
+
+/// Difficulty level controlling the trade-off between run time and completeness.
+///
+/// - `Easy`: small, fast subset of mutants per file.
+/// - `Medium`: moderate subset.
+/// - `Hard`: all generated mutants (most thorough, slowest).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Difficulty {
+    Easy,
+    Medium,
+    Hard,
+}
+
+impl Default for Difficulty {
+    fn default() -> Self {
+        Difficulty::Hard
+    }
+}
+
+impl FromStr for Difficulty {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "easy" => Ok(Difficulty::Easy),
+            "medium" => Ok(Difficulty::Medium),
+            "hard" => Ok(Difficulty::Hard),
+            _ => Err(format!("unknown difficulty: {s}")),
+        }
+    }
+}
+
+impl Difficulty {
+    /// Returns the per-source-file mutant cap for this difficulty, if any.
+    pub fn max_mutants_per_file(self) -> Option<usize> {
+        match self {
+            Difficulty::Easy => Some(50),
+            Difficulty::Medium => Some(150),
+            Difficulty::Hard => None,
+        }
+    }
+}
 
 /// Versioned project configuration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -49,6 +94,10 @@ pub struct Config {
     /// Function name include/exclude filters.
     #[serde(default)]
     pub functions: Filter,
+
+    /// Difficulty level controlling the per-file mutant cap.
+    #[serde(default)]
+    pub difficulty: Difficulty,
 }
 
 fn default_version() -> String {
@@ -67,6 +116,21 @@ fn default_source_globs() -> Vec<String> {
     vec!["*.lua".to_string()]
 }
 
+/// Default operator weights used only for internal prioritization when a
+/// difficulty cap limits the number of mutants per file. Higher values are kept
+/// first. This is not exposed in the configuration file.
+fn default_operator_weights() -> HashMap<String, i32> {
+    [
+        ("arithmetic_operator".to_string(), 100),
+        ("relational_operator".to_string(), 90),
+        ("logical_operator".to_string(), 80),
+        ("condition_negation".to_string(), 70),
+        ("control_flow".to_string(), 60),
+    ]
+    .into_iter()
+    .collect()
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -81,6 +145,7 @@ impl Default for Config {
             parallelism: None,
             files: Filter::default(),
             functions: Filter::default(),
+            difficulty: Difficulty::default(),
         }
     }
 }
@@ -104,6 +169,15 @@ impl Config {
     pub fn with_framework(mut self, framework: impl Into<String>) -> Self {
         self.framework = Some(framework.into());
         self
+    }
+
+    /// Returns the internal priority weight for an operator. Used when a
+    /// difficulty cap requires selecting which mutants to keep per file.
+    pub fn operator_weight(&self, operator: &str) -> i32 {
+        default_operator_weights()
+            .get(operator)
+            .copied()
+            .unwrap_or(0)
     }
 }
 
@@ -160,6 +234,7 @@ impl Config {
         if !other.functions.include.is_empty() || !other.functions.exclude.is_empty() {
             self.functions = other.functions;
         }
+        self.difficulty = other.difficulty;
     }
 }
 
@@ -308,5 +383,23 @@ timeout = 30
         assert!(!glob_match("*.lua", "foo.txt"));
         assert!(glob_match("test_*", "test_foo"));
         assert!(glob_match("?at", "cat"));
+    }
+
+    #[test]
+    fn parses_difficulty() {
+        let source = r#"
+version = "1"
+difficulty = "easy"
+"#;
+        let config: Config = toml::from_str(source).unwrap();
+        assert_eq!(config.difficulty, Difficulty::Easy);
+        assert_eq!(config.difficulty.max_mutants_per_file(), Some(50));
+    }
+
+    #[test]
+    fn default_difficulty_is_hard() {
+        let config: Config = toml::from_str("version = \"1\"").unwrap();
+        assert_eq!(config.difficulty, Difficulty::Hard);
+        assert_eq!(config.difficulty.max_mutants_per_file(), None);
     }
 }

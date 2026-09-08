@@ -90,5 +90,33 @@ lua-mutation-test init
 ## Configuration file
 
 The `--config` option points to a TOML or JSON file that controls operators,
-includes, excludes, and test-runner settings. See [Getting Started](getting-started.md)
-for a configuration example.
+includes, excludes, and test-runner settings.
+
+### Options
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `version` | string | Config schema version. Must be `"1"`. |
+| `test_command` | string | Shell command used to run the test suite. |
+| `framework` | string | Test framework adapter: `"busted"` or `"luaunit"`. |
+| `timeout` | integer | Timeout in seconds for each mutant test run. |
+| `test_globs` | list of strings | Glob patterns for discovering test files. |
+| `source_globs` | list of strings | Glob patterns for discovering source files. |
+| `difficulty` | string | `"easy"`, `"medium"`, or `"hard"`. Controls the per-file mutant cap. Default is `"hard"`. |
+| `operators.include` | list of strings | Only run these operator ids. |
+| `operators.exclude` | list of strings | Skip these operator ids. |
+| `parallelism` | integer | Number of concurrent mutant runs. |
+| `output` | list of strings | Report output formats. |
+
+Use `lua-mutation-test list-operators` to see available operator ids.
+
+### Example
+
+```toml
+version = "1"
+test_command = "make test"
+difficulty = "medium"
+
+[operators]
+include = ["arithmetic_operator", "relational_operator"]
+```

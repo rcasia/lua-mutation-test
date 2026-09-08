@@ -4,7 +4,7 @@ use lua_mutation_test::baseline::run_baseline;
 use lua_mutation_test::cli::{exit, Cli, Command, RunArgs, WatchArgs};
 use lua_mutation_test::config::{Config, DEFAULT_CONFIG_PATH};
 use lua_mutation_test::incremental;
-use lua_mutation_test::mutant::MutantGenerator;
+use lua_mutation_test::mutant::{Mutant, MutantGenerator};
 use lua_mutation_test::operators::default_operators;
 use lua_mutation_test::parser::Parser as LuaParser;
 use lua_mutation_test::report::{generate_report, ReportData, ReportFormat};
@@ -81,6 +81,15 @@ test_command = "busted"
 timeout = 30
 test_globs = ["*_spec.lua", "*_test.lua", "test_*.lua"]
 source_globs = ["*.lua"]
+
+# Difficulty controls the trade-off between speed and completeness.
+# Options: "easy", "medium", "hard". Default is "hard" (all mutants).
+# difficulty = "medium"
+
+# Operators to include or exclude. Use operator ids from `list-operators`.
+# [operators]
+# include = ["arithmetic_operator", "relational_operator"]
+# exclude = ["control_flow"]
 "#,
             )
             .map_err(|e| format!("failed to write sample config: {e}"))?;
@@ -156,15 +165,28 @@ where
         let source = std::fs::read_to_string(file)
             .map_err(|e| format!("failed to read {}: {e}", file.display()))?;
         let tree = parser.parse_source(&source).map_err(|e| e.to_string())?;
-        let generator = MutantGenerator::new(default_operators());
+        let operators: Vec<_> = default_operators()
+            .into_iter()
+            .filter(|op| config.operators.matches(op.id()))
+            .collect();
+        if operators.is_empty() {
+            return Err("no mutation operators selected; check your configuration".to_string());
+        }
+        let generator = MutantGenerator::new(operators);
         let (valid, _invalid, equivalent) = generator.generate_validated(file, &source, &tree);
+        let valid = apply_mutant_limit(valid, &config);
         mutants.extend(valid.into_iter().map(|m| (m, source.clone())));
         equivalent_results.extend(equivalent.into_iter().map(|m| {
             let reason = m.equivalent_reason.clone().unwrap_or_default();
             lua_mutation_test::result::MutantResult::Equivalent { mutant: m, reason }
         }));
         if (i + 1) % 10 == 0 || i + 1 == source_files.len() {
-            eprintln!("  processed {}/{} source file(s), {} mutant(s) so far", i + 1, source_files.len(), mutants.len());
+            eprintln!(
+                "  processed {}/{} source file(s), {} mutant(s) so far",
+                i + 1,
+                source_files.len(),
+                mutants.len()
+            );
         }
     }
     eprintln!("  generated {} mutant(s)", mutants.len());
@@ -232,6 +254,35 @@ fn num_cpus_like() -> usize {
     std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(1)
+}
+
+/// Applies the difficulty-based per-file mutant cap, keeping the
+/// highest-priority mutants first.
+fn apply_mutant_limit(mutants: Vec<Mutant>, config: &Config) -> Vec<Mutant> {
+    let max = match config.difficulty.max_mutants_per_file() {
+        Some(max) if max > 0 && mutants.len() > max => max,
+        _ => return mutants,
+    };
+
+    let mut scored: Vec<(i32, usize, usize, Mutant)> = mutants
+        .into_iter()
+        .map(|m| {
+            let weight = config.operator_weight(&m.operator);
+            (weight, m.line, m.column, m)
+        })
+        .collect();
+
+    // Higher weight first; tie-break by source location for determinism.
+    scored.sort_by(|a, b| {
+        b.0.cmp(&a.0)
+            .then_with(|| a.1.cmp(&b.1))
+            .then_with(|| a.2.cmp(&b.2))
+    });
+    scored.truncate(max);
+
+    // Restore a stable order (by source location) before returning.
+    scored.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.2.cmp(&b.2)));
+    scored.into_iter().map(|(_, _, _, m)| m).collect()
 }
 
 /// Trait that abstracts over `RunArgs` and `WatchArgs` so the pipeline can be
@@ -330,4 +381,60 @@ fn config_from_cli(cli: &Cli) -> Config {
         _ => {}
     }
     config
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn dummy_mutant(operator: &str, line: usize, column: usize) -> Mutant {
+        Mutant {
+            id: format!("{operator}-{line}-{column}"),
+            operator: operator.to_string(),
+            file: PathBuf::from("src/foo.lua"),
+            start_byte: 0,
+            end_byte: 1,
+            line,
+            column,
+            original: "x".to_string(),
+            replacement: "y".to_string(),
+            equivalent_reason: None,
+        }
+    }
+
+    #[test]
+    fn apply_mutant_limit_keeps_highest_priority_mutants_on_easy() {
+        let mut config = Config::default();
+        config.difficulty = lua_mutation_test::config::Difficulty::Easy;
+
+        // Easy caps at 50 mutants per file. Create 51 so one is dropped.
+        let mut mutants = vec![dummy_mutant("arithmetic_operator", 100, 1)];
+        for i in 1..=50 {
+            mutants.push(dummy_mutant("control_flow", i, 1));
+        }
+
+        let limited = apply_mutant_limit(mutants, &config);
+        assert_eq!(limited.len(), 50);
+        assert!(limited.iter().any(|m| m.operator == "arithmetic_operator"));
+        assert_eq!(
+            limited
+                .iter()
+                .filter(|m| m.operator == "control_flow")
+                .count(),
+            49
+        );
+    }
+
+    #[test]
+    fn apply_mutant_limit_returns_all_on_hard() {
+        let config = Config::default();
+        let mutants = vec![
+            dummy_mutant("control_flow", 1, 1),
+            dummy_mutant("arithmetic_operator", 2, 1),
+            dummy_mutant("relational_operator", 3, 1),
+        ];
+
+        let limited = apply_mutant_limit(mutants, &config);
+        assert_eq!(limited.len(), 3);
+    }
 }
