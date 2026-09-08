@@ -16,6 +16,7 @@ mutation scores.
 
 [![Rust](https://github.com/rcasia/lua-mutation-test/actions/workflows/rust.yml/badge.svg)](https://github.com/rcasia/lua-mutation-test/blob/main/.github/workflows/rust.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/rcasia/lua-mutation-test)](https://github.com/rcasia/lua-mutation-test/releases)
+[![Docs](https://img.shields.io/badge/docs-gh--pages-blue)](https://rcasia.github.io/lua-mutation-test/)
 
 ## Features
 
@@ -151,7 +152,6 @@ and push to `origin/main` frequently.
 
 ## License
 
-This project is licensed under the [Elastic License 2.0](LICENSE). You may use,
-modify, and distribute it freely, including at your workplace. Providing the
-Software to third parties as a hosted or managed service is reserved to the
-copyright holder.
+This project is licensed under the [Apache License 2.0](LICENSE). You may use,
+modify, and distribute it freely, including for commercial purposes, subject to
+the terms and conditions of the license.

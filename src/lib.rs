@@ -9,4 +9,5 @@ pub mod mutant_validation;
 pub mod operators;
 pub mod parser;
 pub mod position;
+pub mod runner;
 pub mod test_discovery;

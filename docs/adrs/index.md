@@ -18,7 +18,8 @@ reversed or superseded, a new ADR is written.
 | [ADR-006](0006-semantic-release.md) | Automate releases with semantic-release | Accepted | 2026-09-07 |
 | [ADR-007](0007-vertical-slices.md) | Apply vertical slices for feature development | Accepted | 2026-09-07 |
 | [ADR-008](0008-agent-driven-development.md) | Agent-driven development | Accepted | 2026-09-07 |
-| [ADR-009](0009-elastic-license-2.0.md) | License under Elastic License 2.0 | Accepted | 2026-09-07 |
+| [ADR-009](0009-elastic-license-2.0.md) | License under Elastic License 2.0 | Superseded | 2026-09-07 |
+| [ADR-010](0010-apache-license-2.0.md) | License under Apache License 2.0 | Accepted | 2026-09-08 |
 
 ## Creating a new ADR
 

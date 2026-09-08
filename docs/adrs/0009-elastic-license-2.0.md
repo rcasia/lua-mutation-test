@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR-010: License under Apache License 2.0](0010-apache-license-2.0.md)
 
 ## Context
 
