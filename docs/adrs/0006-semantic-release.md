@@ -63,6 +63,8 @@ releases.
 
 - `.releaserc.json` configures the plugins and ZeroVer release rules.
 - `.github/workflows/release.yml` runs tests and then semantic-release on a schedule.
+- Crates.io publishing is performed in a separate `publish-crate` job that depends on the
+  `release` job, so a GitHub release is created independently of the crate upload.
 - The initial tag `v0.0.0` ensures semantic-release starts from 0.x.
 
 ## References
